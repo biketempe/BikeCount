@@ -199,7 +199,7 @@ warn "adding a new volunteer record";
         my $unassigned = get_pending_sites();
         for my $id (sort { $a cmp $b } keys %$unassigned) {
             my $site = $unassigned->{$id};
-            $fh and $fh->print($id, ': ', $site->location_N_S, ' and ', $site->location_W_E);
+            $fh and $fh->print($id, ': ', $site->location_N_S, ' and ', $site->location_W_E, "\n");
         }
 
     }

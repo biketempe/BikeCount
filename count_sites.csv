@@ -1,0 +1,56 @@
+"2012 Tempe Bike Count Locations",,,,,,,,,
+location_id,location_W_E,location_N_S,priority,vols_needed,zone,longitude,latitude,automatic_geocoding_failed,geocoded_by
+101,Washington/Curry,"Mill Ave",25,1,1N,-111.94374,33.43866,0,Geo::Coder::Geocoder::US
+102,"Rio Salado Pkwy","Mill Ave",38,2,1N,-111.94045,33.42969,0,hand
+103,"Rio Salado Pkwy","Rural Rd",16,1,1N,-111.926099,33.429245,0,Geo::Coder::Geocoder::US
+104,"Rio Salado Pkwy","McClintock Dr",24,1,1N,-111.908898,33.429145,0,Geo::Coder::Geocoder::US
+105,"Rio Salado Pkwy","Hardy Dr",86,2,,-111.91795,33.42934,0,Geo::Coder::Geocoder::US
+106,"5th St","Mill Ave",13,2,2A,-111.939799,33.425445,0,Geo::Coder::Geocoder::US
+107,"5th St","Forest Ave",21,1,2A,-111.936499,33.425445,0,Geo::Coder::Geocoder::US
+108,"5th St","Farmer Ave",51,1,4W,-111.944099,33.425445,0,Geo::Coder::Geocoder::US
+109,"5th St","Hardy Dr",28,2,4W,-111.952199,33.425545,0,Geo::Coder::Geocoder::US
+110,"5th St","Priest Dr",86,1,,-111.96124,33.42379,0,Geo::Coder::Geocoder::US
+111,"10th St","Mill Ave",11,1,2A,-111.939799,33.418945,0,Geo::Coder::Geocoder::US
+112,"60 Fwy","College Ave",26,1,5S,-111.93477,33.38548,0,hand
+113,"13th St","Mill Ave",15,2,2A,-111.939799,33.414645,0,Geo::Coder::Geocoder::US
+114,"13th St","Hardy Dr",52,1,4W,-111.951999,33.414645,0,Geo::Coder::Geocoder::US
+115,"University Dr","College Ave",9,2,2A,-111.934799,33.421845,0,Geo::Coder::Geocoder::US
+116,"University Dr","Dorsey Ln",41,2,2A,-111.91791,33.42178,0,hand
+117,"University Dr","Rural Rd",14,1,2A,-111.926299,33.422045,0,Geo::Coder::Geocoder::US
+118,"University Dr","Mill Ave",3,1,2A,-111.939799,33.421945,0,Geo::Coder::Geocoder::US
+119,"University Dr","Ash Ave",1,1,4W,-111.942199,33.421945,0,Geo::Coder::Geocoder::US
+120,"University Dr","Roosevelt St",4,1,4W,-111.947099,33.421845,0,Geo::Coder::Geocoder::US
+121,"University Dr","Hardy Dr",2,1,4W,-111.952199,33.421845,0,Geo::Coder::Geocoder::US
+122,"McKellips Rd","Greenbelt Path",22,1,4W,-111.91303,33.45128,0,hand
+123,"Western Canal","Rural Rd",23,1,5S,-111.92854,33.35663,0,Geo::Coder::Geocoder::US
+124,"Western Canal","McClintock Dr",86,1,,-111.91153,33.35677,0,Geo::Coder::Geocoder::US
+125,"Western Canal","Lakeshore Dr",39,1,5S,-111.92068,33.35628,0,hand
+126,"Baseline Rd","Western Canal",31,1,5S,-111.945448,33.377958,0,Geo::Coder::Geocoder::US
+127,"Elliot Rd","McClintock Dr",86,2,,-111.911297,33.349147,0,Geo::Coder::Geocoder::US
+128,"Alameda Dr","McClintock Dr",29,1,3C,-111.908998,33.400146,0,Geo::Coder::Geocoder::US
+129,"Alameda Dr","S Rural Rd",50,2,3C,-111.926098,33.400246,0,Geo::Coder::Geocoder::US
+130,"Alameda Dr","Country Club Wy",86,1,,-111.900497,33.400346,0,Geo::Coder::Geocoder::US
+131,"Apache Blvd","S Rural Rd",12,1,2A,-111.926098,33.414645,0,Geo::Coder::Geocoder::US
+132,"Apache Blvd","S Dorsey Ln",19,1,2A,-111.917698,33.414745,0,Geo::Coder::Geocoder::US
+133,"Apache Blvd","College Ave",7,1,2A,-111.934699,33.414545,0,Geo::Coder::Geocoder::US
+134,"Apache Blvd","Paseo Del Saber",10,1,2A,-111.90717,33.41477,0,Geo::Coder::Geocoder::US
+135,"Lemon St","Rural Rd",44,1,2A,-111.926198,33.416745,0,Geo::Coder::Geocoder::US
+136,"Spence St","Rural Rd",18,1,2A,-111.926198,33.412845,0,Geo::Coder::Geocoder::US
+137,"Broadway Rd","Priest Dr",49,1,3C,-111.960699,33.407545,0,Geo::Coder::Geocoder::US
+138,"Broadway Rd","Rural Rd",6,1,3C,-111.926098,33.407445,0,Geo::Coder::Geocoder::US
+139,"Broadway Rd","College Ave",48,1,3C,-111.934699,33.407445,0,Geo::Coder::Geocoder::US
+140,"Southern Ave","Priest Dr",86,1,,-111.960709,33.392845,0,Geo::Coder::Geocoder::US
+141,"Southern Ave","College Ave",42,1,3C,-111.934798,33.392846,0,Geo::Coder::Geocoder::US
+142,"Southern Ave","Rural Rd",43,1,3C,-111.926198,33.392946,0,Geo::Coder::Geocoder::US
+143,"Southern Ave","Hardy Dr",30,1,3C,-111.951999,33.392846,0,Geo::Coder::Geocoder::US
+144,"Southern Ave","Mill Ave",20,1,3C,-111.939499,33.392846,0,Geo::Coder::Geocoder::US
+145,"Alameda Dr","Mill Ave",27,1,3C,-111.939599,33.400245,0,Geo::Coder::Geocoder::US
+146,"Broadway Rd","Mill Ave",5,2,3C,-111.939699,33.407345,0,Geo::Coder::Geocoder::US
+147,"Baseline Rd","Mill Ave",32,1,5S,-111.939298,33.378146,0,Geo::Coder::Geocoder::US
+148,"Guadalupe Rd","Kyrene Rd",46,1,5S,-111.945898,33.363546,0,Geo::Coder::Geocoder::US
+149,"Guadalupe Rd","Country Club Wy",86,1,,-111.90079,33.39241,0,Geo::Coder::Geocoder::US
+150,"Guadalupe Rd","Lakeshore Dr",47,1,5S,-111.919797,33.363647,0,Geo::Coder::Geocoder::US
+151,"University Dr","Forest Ave",17,1,4W,-111.936499,33.421845,0,Geo::Coder::Geocoder::US
+152,"Tempe Lake","TCA Bridge",8,1,1N,-111.94875,33.4335,0,Geo::Coder::Geocoder::US
+153,"Apache Blvd",McAllister,53,1,2A,-111.90717,33.41477,0,hand
+154,Terrace,"Rural Rd",54,1,2A,-111.926198,33.418745,0,Geo::Coder::Geocoder::US
