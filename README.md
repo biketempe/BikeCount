@@ -2,6 +2,13 @@ IT goop for Tempe Bicycle Action Group's annual Bike Count as written for the 20
 
 Includes a Plack app that listens on port 5000 accepting public signups.
 
+Run it with this command:
+
+/usr/local/bin/corona signup.pl 
+
+Requires the perl 'Corona' CPAN module to be installed, the 'Continuty' package, and of 
+course, Perl.
+
 It reads and writes count_sites.csv, volunteers.csv, and unassigned_locations.txt.
 count_sites.csv gets longitude,latitude fields set from the location_W_E,location_N_S fields.
 Geocoding hard-codes in "Tempe, AZ".
@@ -13,3 +20,4 @@ unassigned_locations.txt gets re-written after each signup to contain the list o
 that no one has signed up for yet.
 volunteers.csv gets rewritten after each signup to include the entered form data including
 intersections signed up for, with one row per unique email address.
+
