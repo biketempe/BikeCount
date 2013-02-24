@@ -27,6 +27,7 @@ use JSON::PP;
 use Geo::Coder::TomTom;
 use XXX;
 use Carp;
+use HTML::Scrubber;
 
 use repop 'repop';
 use csv;
@@ -220,11 +221,13 @@ my $server = Continuity->new(
     debug => 3,
 );
 
+my $scrubber = HTML::Scrubber->new;
+
 sub main {
     my $req = shift;
 
     my $signup_data = { };
-  
+
     while(1) {
 
         $count_sites->reload;
@@ -236,7 +239,7 @@ sub main {
         # warn "new params: " . Data::Dumper::Dumper \%new_params;
         for my $new_param (keys %new_params) {
             next if $new_param eq 'action';
-            $signup_data->{ $new_param } = $new_params{ $new_param };
+            $signup_data->{ $new_param } = $scrubber->scrub( $new_params{ $new_param } );
         }
         $log->print("signup_data: " . Data::Dumper::Dumper $signup_data );
 
@@ -244,7 +247,7 @@ sub main {
 
         if( $action eq 'get_times_for_intersection' ) {
             
-            my $location_id = $req->param('location_id');
+            my $location_id = $scrubber->scrub( $req->param('location_id') );
             $location_id =~ s{:.*}{};  # comes in the form of eg "101: Hardy and Southern"
 
             my $sites = get_pending_sites( $location_id );
