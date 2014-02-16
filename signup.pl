@@ -74,9 +74,22 @@ my $pm_shifts = qq{
 
 sub get_pois {
 
+    my $all_flag = shift;
+
     # get points of interest that haven't yet been (completely) allocated
 
-    my $pending_sites = get_pending_sites();
+    my $pending_sites;
+
+    if( $all_flag ) {
+        for my $site ( $count_sites->rows ) {
+            $pending_sites->{ $site->location_id . 'A' } = $site;
+            $pending_sites->{ $site->location_id . 'P' } = $site;
+        }
+    } else {
+        # normal case:  only show what's still available
+        $pending_sites = get_pending_sites();
+    }
+
 
     my @pois = sort { $a->{desc} cmp $b->{desc} } grep { $_->{lat} and $_->{lon} and $_->{desc} } map { 
         {
@@ -107,12 +120,38 @@ sub get_pending_sites {
         $sites{ $site->location_id . 'P' } = $site;
     }
 
+    # XXX generalize this to use the 'vols_needed' of $count_sites
+
+    my %double_up = (
+#        '133A' => 1,
+#        '133P' => 1,
+#        '111A' => 1,
+#        '111P' => 1,
+        # '118A' => 1,
+        # '118P' => 1,
+    );
+
     for my $volunteer ( $volunteers->rows ) {
         my $intersections = $volunteer->intersections or next;
         my @intersections = split m/,/, $intersections or next;
         for my $intersection ( @intersections ) {
             my( $location_id_ampm ) = $intersection =~ m/(\d+[AP])/;  # ignore any trailing day of the week information
-            delete $sites{ $location_id_ampm };  # taken
+            if( $double_up{ $location_id_ampm } ) {
+                $double_up{ $location_id_ampm }--;
+             } else {
+                delete $sites{ $location_id_ampm };  # taken
+            }
+        }
+    }
+
+    # update unassigned_sites
+
+    if( ! $loc_id ) {
+        open my $fh, '>', 'unassigned_locations.txt' or warn $!;
+
+        for my $id (sort { $a cmp $b } keys %sites) {
+            my $site = $sites{$id};
+            $fh and $fh->print($id, ': ', $site->location_N_S, ' and ', $site->location_W_E, "\n");
         }
     }
 
@@ -126,7 +165,7 @@ sub get_assignments {
 
     my $email_address = shift or return;
 
-    my $volunteer = $volunteers->find('email_address', $email_address) or return;
+    my $volunteer = $volunteers->find('email_address', $email_address, sub { lc $_[0] } ) or return;
 
     my $parsed_assignments = '';
 
@@ -193,15 +232,6 @@ warn "adding a new volunteer record";
 
         $error = '<br><br>Count shift recorded -- thanks!';
 
-        # update unassigned_sites
-
-        open my $fh, '>', 'unassigned_locations.txt' or warn $!;
-
-        my $unassigned = get_pending_sites();
-        for my $id (sort { $a cmp $b } keys %$unassigned) {
-            my $site = $unassigned->{$id};
-            $fh and $fh->print($id, ': ', $site->location_N_S, ' and ', $site->location_W_E, "\n");
-        }
 
     }
 
@@ -267,11 +297,13 @@ sub main {
 
         } else {
   
+            my $all = $req->param('all');  # show all intersections, even those that are full?
+
             my $signupform = read_signupform('signup1.html'); # every time, during dev
 
             my $html = repop( $signupform, $signup_data );
 
-            my $pois = get_pois();
+            my $pois = get_pois( $all );
             my $json_pois = encode_json $pois;
             $html =~ s/POIS/$json_pois/;
 
