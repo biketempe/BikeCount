@@ -59,13 +59,26 @@ for my $date (keys %people_by_training_date) {
     }
 }
 
+my %also_had_previous_shift;
+
 for my $shift ( qw/ATue PTue AWed PWed AThu PThu/ ) {
-    print "\n---> count shift $shift:\n";
+
+    print "\n---> count shift $shift (didn't have a previous shift):\n";
     for my $volunteer ( @{ $people_by_shift{$shift} } ) {
+        next if $also_had_previous_shift{ $volunteer->email_address };
         my $name = join ' ', map $volunteer->{$_}, qw/first_name last_name/;
         # print $name, ' ', $volunteer->email_address, "\n";
         print $volunteer->email_address, "\n";
     }
+
+    print "\n---> count shift $shift (all):\n";
+    for my $volunteer ( @{ $people_by_shift{$shift} } ) {
+        my $name = join ' ', map $volunteer->{$_}, qw/first_name last_name/;
+        # print $name, ' ', $volunteer->email_address, "\n";
+        print $volunteer->email_address, "\n";
+        $also_had_previous_shift{ $volunteer->email_address }++;
+    }
+
 }
 
 #
@@ -140,4 +153,16 @@ for my $doubled_up_intersection ( sort { $a cmp $b } keys %doubled_up ) {
     print map "$_\n", $doubled_up_intersection . ': ' . join ', ', @{ $doubled_up{ $doubled_up_intersection } };
 }
 
+#
+# assignments by location id
+#
+
+print "\n---> assignments by location id\n\n";
+
+for my $count_site ( sort { $a->location_id cmp $b->location_id } $count_sites->rows ) {
+    for my $ampm ('A', 'P') {
+        my $location_id = $count_site->location_id . $ampm;
+        print map "$_\n", $location_id . ': ' . join ', ', @{ $doubled_up{ $location_id } };
+    }
+}
 
