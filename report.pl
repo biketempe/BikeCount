@@ -14,6 +14,8 @@ my @email_config = (
     -pass=>   `/home/scott/bin/bikecountgmail`    # this is a small small executable that just outputs the password; you could also hard-code the password here
 );
 
+my $password = 'jennguzy1';
+
 # XXX use the vols_needed field 
 # XXX mail merge function for assignments / training date
 # XXX let jenn edit the email assignment message before it goes out
@@ -78,7 +80,7 @@ for my $volunteer ( $volunteers->rows ) {
 my %people_by_location;  # indexed by location_id; eg 101A
 
 for my $volunteer ( $volunteers->rows ) {
-    # first_name,last_name,phone_number,email_address,training_session,training_session_comment,intersections,comments
+    # first_name,last_name,phone_number,email_address,training_session,training_session_comment,intersections,was_mailed_assignment,comments
     my $name = join ' ', map $volunteer->{$_}, qw/first_name last_name/;
     my $email = $volunteer->email_address;
     $name = $email if $name eq ' ';
@@ -139,8 +141,14 @@ my $server = Continuity->new(
 
 sub main {
     my $req = shift;
+
+    while(1) {
+        last if $req->param('password') and $req->param('password') eq $password;
+        $req->print(qq{<form method="post">Password: <input type="text" name="password"><input type="submit"></form>});
+        $req->next;
+    }
             
-    while(1) { 
+    while(1) {
 
         $count_sites->reload;
         $volunteers->reload;
@@ -205,24 +213,35 @@ sub main {
             if ( $action2 eq 'delete_assignment' ) {
                 my $assignment = $req->param('assignment');
                 @updated_assignments = grep $_ ne $assignment, @assignments;
-                @updated_assignments == @assignments - 1 or do { $req->print("failed to find the assignment in their list of assignments to remove"); next; };
+                @updated_assignments < @assignments or do {
+                    $req->print("failed to find the assignment in their list of assignments to remove: $assignment not in @assignments");
+                     goto skip_the_subaction;
+                };
             } elsif( $action2 eq 'add_assignment' ) {
                 my $new_assignment = $req->param('new_assignment') . $req->param('day');
+                if( ! check_compat_shift( \@assignments, $new_assignment ) ) {
+                    $req->print("new assignment $new_assignment conflicts with an existing assignment<br>\n");
+                    goto skip_the_subaction;
+                }
                 @updated_assignments = ( @assignments, $new_assignment );
             }
 
             if( $action2 ) {
                 $volunteer->intersections = join ',', @updated_assignments;
                 $volunteers->write;
-                @assignments = assignments_per_user( $email );
+                $volunteers->reload;
+                # @assignments = assignments_per_user( $email );
+                @assignments = @updated_assignments;
             }
+
+            skip_the_subaction:
 
             my @pending_shifts = get_pending_shifts();  # we do this after we possibily delete an assignment
             $req->print( qq{<form method="post"><input type="hidden" name="action2" value="add_assignment"><select name="new_assignment">} . join('', map qq{<option value="$_">$_</option>}, @pending_shifts) . qq{</select><select name="day"><option>Tue</option><option>Wed</option><option>Thu</Option></select><input type="submit" value="Add"></form><br>\n} );
 
             for my $assignment ( @assignments ) {
                 # my( $location_id, $ampm, $day, $location_N_S, $location_W_E ) = @$assignment;
-                $req->print(qq{$assignment <a href="?action2=delete_assignment;person=$email;assignment=$assignment">delete</a><br>\n});
+                $req->print(qq{<nobr>$assignment&nbsp;<form method="post"><input type="hidden" name="action2" value="delete_assignment"><input type="hidden" name="person" value="$email"><input type="hidden" name="assignment" value="$assignment"><input type="submit" value="delete"></form></nobr><br>\n});
             }
 
 
@@ -338,7 +357,7 @@ unless( $volunteer->email_address eq 'scott@slowass.net' or $volunteer->email_ad
 
                      $mail->send( 
                          -to => $volunteer->email_address,
-                         -subject => "Subject: Your Bike Count shift details",
+                         -subject => "Your Bike Count shift details",
                          -body => $body,
                      ); # or die; # always dies
 
@@ -347,6 +366,7 @@ unless( $volunteer->email_address eq 'scott@slowass.net' or $volunteer->email_ad
 
                  }
 
+                 $req->print("done.<br>\n");
                  $mail->bye;
 
             } else {
@@ -441,15 +461,31 @@ sub get_pending_shifts {
 
 }
 
+sub check_compat_shift {
+    my $intersections = shift;
+    my $pending_shift = shift;
+
+    my %intersection_by_date_shift;
+
+    for my $intersection ( @$intersections ) {
+        my( $location_id, $ampm, $day ) = $intersection =~ m/^(\d+)([AP])([A-Z][a-z]{2})$/ or die $intersection;
+        $intersection_by_date_shift{ "$ampm$day" } = $location_id; # not checking here for double booked
+    }
+
+    my( $location_id, $ampm, $day ) = $pending_shift =~ m/^(\d+)([AP])([A-Z][a-z]{2})$/ or die $pending_shift;
+    return ! $intersection_by_date_shift{ "$ampm$day" };
+
+}
+
 sub assignments_per_user {
 
-    my $email_address = shift or return [];
+    my $email_address = shift or return ();
 
-    my $volunteer = $volunteers->find('email_address', $email_address, sub { lc $_[0] } ) or return [];
+    my $volunteer = $volunteers->find('email_address', $email_address, sub { lc $_[0] } ) or return ();
 
     my @assignments;
 
-    my $intersections = $volunteer->intersections or return [];
+    my $intersections = $volunteer->intersections or return ();
     for my $intersection ( split m/,/, $intersections ) {
         my( $location_id, $ampm, $day ) = $intersection =~ m/(\d+)([AP])(.*)/;
         my $site = $count_sites->find('location_id', $location_id);
