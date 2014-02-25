@@ -7,85 +7,82 @@ use csv;
 use Data::Dumper;
 use String::Approx;
 
-# XXX mail merge function for assignments
-# XXX mail merge function for training date
-# XXX add a column to 'count_sites.csv' for whether new counters are permitted to take it; make signup.pl honor it by cross-referrencing previous years and limiting what it shows
+# XXX deliver mail using password rq9gxJK7ccLJUMcO; put that in a little bin
+# XXX use the vols_needed field 
+# XXX mail merge function for assignments / training date
+# XXX let jenn edit the email assignment message before it goes out
+# XXX define sketchy assignments for jenn
+# XXXX fire both of these up on the linode and send it to jenn
+# XXXX do an extra sketchy where people sign up and bail on the sign up
 
-my $previous = csv->new('vis/2011_2012_combined.csv', 0);
+# test -- track who signed up since the last assignments email went out
 
-my $volunteers = csv->new('offsite/volunteers.csv', 0);
+use lib 'continuity/lib'; # dev version
+use Continuity;
+use Continuity::Adapt::PSGI;
 
-my $count_sites = csv->new('offsite/count_sites.csv', 1);
+use Data::Dumper;
+use IO::Handle;
+use Carp;  
+use Cwd;
+
+use csv;
+use geo;
+
+
+my $previous = csv->new('count_data_2013_post_cliff_fixes_extra_data_prune.csv', 0);
+# my $previous = csv->new('2011_2012_combined.csv', 0);
+
+my $volunteers = csv->new('volunteers.csv', 0);
+
+my $count_sites = csv->new('count_sites.csv', 1);
 
 #
-# list of who has training on which date
 # list of who has count shifts on which dates
 #
 
-my %people_by_training_date;
-my %people_by_shift;
+my %people_by_shift;     # indexed by eg ATue
 
 for my $volunteer ( $volunteers->rows ) {
 
-        my $intersections = $volunteer->intersections or next;
-        my @intersections = split m/,/, $intersections or next;
-        my %intersection_by_date_shift;
+    my $intersections = $volunteer->intersections or next;
+    my @intersections = split m/,/, $intersections or next;
+    # my %intersection_by_date_shift;
 
-        # $training_dates{ $volunteer->training_session }++; 
-        $people_by_training_date{ $volunteer->training_session }->{ $volunteer->email_address }++;
+    for my $intersection ( @intersections ) {
 
-        for my $intersection ( @intersections ) {
+        my( $location_id, $ampm, $day ) = $intersection =~ m/(\d+)([AP])([A-Z][a-z]{2})/;
 
-            my( $location_id, $ampm, $day ) = $intersection =~ m/(\d+)([AP])([A-Z][a-z]{2})/;
+        push @{ $people_by_shift{"$ampm$day"} }, $volunteer;
 
-            push @{ $people_by_shift{"$ampm$day"} }, $volunteer;
+        # $intersection_by_date_shift{ "$ampm$day" } = $location_id;
 
-            if( exists $intersection_by_date_shift{ "$ampm$day" } ) {
-                print $volunteer->first_name, ' ', $volunteer->last_name, ' ', $volunteer->email_address, " is double booked for $ampm$day: $location_id vs ", $intersection_by_date_shift{ "$ampm$day" }, "\n";
-            }
-
-            $intersection_by_date_shift{ "$ampm$day" } = $location_id;
-
-
-        }
-
-}
-
-for my $date (keys %people_by_training_date) {
-    my $people = $people_by_training_date{$date};
-    print "\n---> training date $date: @{[ scalar keys %$people ]} people registered\n";
-    for my $person ( sort { $a cmp $b } keys %$people ) {
-        print $person, "\n";
-    }
-}
-
-my %also_had_previous_shift;
-
-for my $shift ( qw/ATue PTue AWed PWed AThu PThu/ ) {
-
-    print "\n---> count shift $shift (didn't have a previous shift):\n";
-    for my $volunteer ( @{ $people_by_shift{$shift} } ) {
-        next if $also_had_previous_shift{ $volunteer->email_address };
-        my $name = join ' ', map $volunteer->{$_}, qw/first_name last_name/;
-        # print $name, ' ', $volunteer->email_address, "\n";
-        print $volunteer->email_address, "\n";
-    }
-
-    print "\n---> count shift $shift (all):\n";
-    for my $volunteer ( @{ $people_by_shift{$shift} } ) {
-        my $name = join ' ', map $volunteer->{$_}, qw/first_name last_name/;
-        # print $name, ' ', $volunteer->email_address, "\n";
-        print $volunteer->email_address, "\n";
-        $also_had_previous_shift{ $volunteer->email_address }++;
     }
 
 }
 
+#
+# find doubled up count shifts
+#
+
+my %people_by_location;  # indexed by location_id; eg 101A
+
+for my $volunteer ( $volunteers->rows ) {
+    # first_name,last_name,phone_number,email_address,training_session,training_session_comment,intersections,comments
+    my $sketchy;
+    my $name = join ' ', map $volunteer->{$_}, qw/first_name last_name/;
+    my $email = $volunteer->email_address;
+    $name = $email if $name eq ' ';
+    my @intersections = split m/,/, $volunteer->intersections;
+    for my $intersection (@intersections) {
+        my( $location_id, $ampm, $day ) = $intersection =~ m/(\d+)([AP])(.*)/;
+        # push @{ $people_by_location{"$location_id$ampm"} }, "$day: $name $email";  # XXX hyperlink
+        push @{ $people_by_location{"$location_id$ampm"} }, [ "$day: $name", $email ];
+    }
+}
 #
 # find sketchy assignments where a new counter (or one who turned in no data in previous years) is on a high value intersection
 #
-
-print "\n---> sketchy assignments\n";
 
 my %prev_volunteer_names = map { ( $_->Recorder => 1 ) } $previous->rows;
 
@@ -104,65 +101,347 @@ for my $volunteer ( $volunteers->rows ) {
         $sketchy = 1;
     }
     if( $sketchy ) {
-        $name = $volunteer->email_address if $name eq ' ';
+        my $email = $volunteer->email_address;
+        $name = $email if $name eq ' ';
         # print "$name: " . $volunteer->intersections . "\n";
         my @intersections = split m/,/, $volunteer->intersections;
         for my $intersection (@intersections) {
             my( $location_id, $ampm, $day ) = $intersection =~ m/(\d+)([AP])(.*)/;
             my $location = $count_sites->find( 'location_id', $location_id );
-            push @sketchy_assignments, [ $name, $intersection, $location->priority ];
+            push @sketchy_assignments, [ $name, $intersection, $location->priority, $email ];
         }
     }
 }
 
-@sketchy_assignments = sort { $b->[2] <=> $a->[2] } @sketchy_assignments;
+@sketchy_assignments = sort { $a->[2] <=> $b->[2] } @sketchy_assignments;
 
-for my $sketchy_assignment ( @sketchy_assignments ) {
-    print map "$_\n", join ' ', map $sketchy_assignment->[$_], 2, 1, 0;
-}
-
-print "\n---> sketchy Thursday assignments\n\n";
-
-for my $sketchy_assignment ( @sketchy_assignments ) {
-    next unless $sketchy_assignment->[1] =~ m/Thu/;
-    print map "$_\n", join ' ', map $sketchy_assignment->[$_], 2, 1, 0;
-}
 
 #
-# find doubled up count shifts
+#
 #
 
-print "\n---> doubled up intersections\n\n";
+my $server = Continuity->new(
+    # adapter => Continuity::Adapt::PSGI->new( docroot => Cwd::getcwd() ),
+    port => 16000,
+    path_session => 1,
+    debug => 3,
+);  
 
-my %doubled_up;
+sub main {
+    my $req = shift;
+            
+    while(1) { 
 
-for my $volunteer ( $volunteers->rows ) {
-    # first_name,last_name,phone_number,email_address,training_session,training_session_comment,intersections,comments
-    my $sketchy;
-    my $name = join ' ', map $volunteer->{$_}, qw/first_name last_name/;
-    my $email = $volunteer->email_address;
-    my @intersections = split m/,/, $volunteer->intersections;
-    for my $intersection (@intersections) {
+        $count_sites->reload;
+        $volunteers->reload;
+
+        my $action = $req->param('action') || 'default';
+        $action = 'person' if $req->param('person');
+
+        # show a menu
+        $req->print( qq{
+            <a href="?action=mail_assignments">Email Assignments Out</a><br>
+            <a href="?action=assignments_by_location">Assignments by Location</a><br>
+            <a href="?action=doubled_up">Assignments With Multiple People On Them</a><br>
+            <a href="?action=people_by_training_date">People By Training Date</a><br>
+            <a href="?action=sketchy">Sketchy Assignments</a><br>
+            <a href="?action=thursday_sketchy">Thursday Sketchy Assignments</a><br>
+            <a href="?action=finished_first_shift">When Peoples First Shifts Are</a><br>
+            <a href="?action=by_last_name">People By Last Name</a><br>
+            <a href="?action=unassigned_locations">Unassigned Locations</a><br>
+            <hr>
+        } );
+
+        # do any actions
+
+        if ( $action eq 'assignments_by_location' ) {
+
+            # assignments by location id
+
+            for my $count_site ( sort { $a->location_id cmp $b->location_id } $count_sites->rows ) {
+                for my $ampm ('A', 'P') {
+                    my $location_id = $count_site->location_id . $ampm;
+                    $req->print( map "$_\n", $location_id . ': ' . join ', ', map qq{<a href="?person=$_->[1]">$_->[0]</a>}, @{ $people_by_location{ $location_id } } );
+                    $req->print("<br>\n");
+                }
+            }
+
+        } elsif ( $action eq 'unassigned_locations' ) {
+
+            my @pending_shifts = get_pending_shifts();  # we do this after we possibily delete an assignment
+            for my $shift ( @pending_shifts ) {
+                my( $location_id, $ampm ) = $shift =~ m/(\d+)([AP])/;
+                my $loc = $count_sites->find('location_id', $location_id);
+                $req->print( $shift, ' ', $loc->location_W_E, ' and ', $loc->location_N_S, "<br>\n" ); 
+            }
+
+        } elsif ( $action eq 'by_last_name' ) {
+
+            for my $volunteer ( sort { $a->last_name cmp $b->last_name } $volunteers->rows ) {
+                my $name = join ' ', map $volunteer->{$_}, qw/first_name last_name/;
+                my $email = $volunteer->email_address;
+                $req->print( qq{<a href="?person=$email">$name $email</a><br>\n} );
+            }
+
+        } elsif ( $action eq 'person' ) {
+
+            my $email = $req->param('person');
+            my $action2 = $req->param('action2') || '';
+            my $volunteer = $volunteers->find('email_address', $email, sub { lc $_[0] } ) or do { print "utterly failed"; next; }; # for updating
+
+            my @assignments = assignments_per_user( $email );
+            my @updated_assignments;
+
+            if ( $action2 eq 'delete_assignment' ) {
+                my $assignment = $req->param('assignment');
+                @updated_assignments = grep $_ ne $assignment, @assignments;
+                @updated_assignments == @assignments - 1 or do { $req->print("failed to find the assignment in their list of assignments to remove"); next; };
+            } elsif( $action2 eq 'add_assignment' ) {
+                my $new_assignment = $req->param('new_assignment') . $req->param('day');
+                @updated_assignments = ( @assignments, $new_assignment );
+            }
+
+            if( $action2 ) {
+                $volunteer->intersections = join ',', @updated_assignments;
+                $volunteers->write;
+                @assignments = assignments_per_user( $email );
+            }
+
+            my @pending_shifts = get_pending_shifts();  # we do this after we possibily delete an assignment
+            $req->print( qq{<form method="post"><input type="hidden" name="action2" value="add_assignment"><select name="new_assignment">} . join('', map qq{<option value="$_">$_</option>}, @pending_shifts) . qq{</select><select name="day"><option>Tue</option><option>Wed</option><option>Thu</Option></select><input type="submit" value="Add"></form><br>\n} );
+
+            for my $assignment ( @assignments ) {
+                # my( $location_id, $ampm, $day, $location_N_S, $location_W_E ) = @$assignment;
+                $req->print(qq{$assignment <a href="?action2=delete_assignment;person=$email;assignment=$assignment">delete</a><br>\n});
+            }
+
+
+        } elsif ( $action eq 'finished_first_shift' ) {
+
+            # the first shift for each user used to figure out when to contact them and ask them how everything went
+
+            # XXX this should generate and send the "how did it go?" emails
+
+            my %also_had_previous_shift;
+
+            for my $shift ( qw/ATue PTue AWed PWed AThu PThu/ ) {
+
+                $req->print("<br><br>\ncount shift $shift (didn't have a previous shift):<br>\n");
+                for my $volunteer ( @{ $people_by_shift{$shift} } ) {
+                    next if $also_had_previous_shift{ $volunteer->email_address };
+                    my $name = join ' ', map $volunteer->{$_}, qw/first_name last_name/;
+                    my $email = $volunteer->email_address;
+                    $req->print( qq{<a href="?person=$email">$name $email</a><br>\n} );
+                }
+
+                # $req->print("\n---> count shift $shift (all):<br>\n");
+                for my $volunteer ( @{ $people_by_shift{$shift} } ) {
+                    my $name = join ' ', map $volunteer->{$_}, qw/first_name last_name/;
+                    # $req->print( $volunteer->email_address, "<br>\n");
+                    $also_had_previous_shift{ $volunteer->email_address }++;
+                }
+            
+            }
+
+        } elsif ( $action eq 'doubled_up' ) {
+
+            for my $people_by_location_intersection ( sort { $a cmp $b } keys %people_by_location ) {
+                next unless @{ $people_by_location{ $people_by_location_intersection } } >= 2 or grep $people_by_location_intersection eq $_, qw/136A 136P 115A 115P 111A 111P 133A 133P/; # XXX
+                # $req->print( map "$_<br>\n", $people_by_location_intersection . ': ' . join ', ', @{ $people_by_location{ $people_by_location_intersection } } );
+                $req->print( map "$people_by_location_intersection: $_<br>\n", join ', ', map qq{<a href="?person=$_->[1]">$_->[0]</a>}, @{ $people_by_location{ $people_by_location_intersection } } );
+            }
+
+        } elsif ( $action eq 'sketchy' ) {
+
+            for my $sketchy_assignment ( @sketchy_assignments ) {
+                # $req->print( map "$_<br>\n", join ' ', map $sketchy_assignment->[$_], 2, 1, 0);
+                my( $name, $intersection, $priority, $email ) = @$sketchy_assignment;
+                # $req->print( qq{<a href="?person=$email">$name $email $intersection $priority</a><br>\n} );
+                $req->print( qq{<a href="?person=$email">$intersection (priority $priority) $name</a><br>\n} );
+            }
+
+        } elsif ( $action eq 'thursday_sketchy' ) {
+
+            for my $sketchy_assignment ( @sketchy_assignments ) {
+                next unless $sketchy_assignment->[1] =~ m/Thu/;
+                my( $name, $intersection, $priority, $email ) = @$sketchy_assignment;
+                $req->print( qq{<a href="?person=$email">$intersection (priority $priority) $name</a><br>\n} );
+            }
+
+        } elsif ( $action eq 'people_by_training_date' ) {
+
+            my %people_by_training_date;
+
+            for my $volunteer ( $volunteers->rows ) {
+                $people_by_training_date{ $volunteer->training_session }->{ $volunteer->email_address }++;
+            }
+
+            for my $date (keys %people_by_training_date) {
+                my $people = $people_by_training_date{$date};
+                $req->print( "<br><br>\ntraining date $date: @{[ scalar keys %$people ]} people registered<br>\n");
+                for my $person ( sort { $a cmp $b } keys %$people ) {
+                    $req->print( qq{<a href="?person=$person">$person</a><br>\n} );
+                }
+            }
+
+        } elsif ( $action eq 'mail_assignments' ) {
+
+            my $mail = Email::Send::SMTP::Gmail->new( -smtp=>'smtp.gmail.com',
+                                                       -login=>'scrottie@biketempe.org',
+                                                       -pass=>`/home/scott/bin/biketempegmail`) or die;
+
+            for my $volunteer ( $volunteers->rows ) {
+
+                next if $volunteer->was_mailed_assignment;
+
+                my $name = join ' ', $volunteer->first_name, $volunteer->last_name;
+
+                my $intersections = $volunteer->intersections or next;
+                my @intersections = split m/,/, $intersections or next;
+
+                my $all_descs = '';
+
+next unless $volunteer->email_address eq 'scott@slowass.net' or $volunteer->email_address eq 'jenn@biketempe.org'; # XXXXXXXXXXXx
+
+                for my $intersection ( @intersections ) {
+
+                    my( $location_id, $ampm, $day ) = $intersection =~ m/(\d+)([AP])([A-Z][a-z]{2})/;
+
+                    my $location = $count_sites->find( 'location_id', $location_id ) or die;
+
+                    my $desc = $location->location_id . ': ' . $location->location_N_S . ' and ' . $location->location_W_E;
+                    $all_descs .= $desc . "\n";
+
+
+                }
+
+                print "emailing " . $volunteer->email_address . "...\n";
+
+                my $body = <<EOF;
+
+Dear $name,
+
+This is a form email with your bike count shift information.  Please double 
+check it and if it isn't what you expect, please contact one of us to sort it
+out.
+
+You may download and print out the count sheet from here:
+
+http://azcrap.org/bikecount/2013_count_sheet.pdf XXX
+
+You need two copies for each shift you have (one sheet per hour, and all shifts
+are two hours).  Let me know if you need sheets but can't print them.
+
+We're running behind on some things here.  The volunteer appreciation party XXX
+is probably Thursday the 28th, after the last count shift, at 7:30pm.  I'll
+send another email when we have confirmation there.
+
+Here are your shifts:
+
+$all_descs
+
+AM shifts are 7-9am.  PM shifts are 4-6pm.
+
+Thanks for being part of the count!
+
+-scott
+
+EOF
+
+                $mail->send( 
+                    -to => $volunteer->email_address,
+                    -subject => "Subject: Your Bike Count shift details",
+                    -body => $body,
+                ); # or die; # always dies
+
+                $volunteer->was_mailed_assignment = scalar time;
+                $volunteers->write;
+
+            }
+
+            $mail->bye;
+
+        }
+
+
+    } # end while 1
+       continue {
+        $req->next; # Get their response to that
+    }
+
+}
+
+
+sub get_pending_shifts {
+
+    # returns a hash of 101A style codes to site records from $count_sites
+
+    my %shifts;
+
+    my %volunteers_needed;
+
+    for my $site ( $count_sites->rows ) {
+        $shifts{ $site->location_id . 'A' } = $site;  # available until found otherwise
+        $shifts{ $site->location_id . 'P' } = $site;
+        $volunteers_needed{ $site->location_id . 'A' } = $site->vols_needed;
+        $volunteers_needed{ $site->location_id . 'P' } = $site->vols_needed;
+    }
+
+    # XXX generalize this to use the 'vols_needed' of $count_sites
+
+    my %double_up = (
+#        '133A' => 1,
+#        '133P' => 1,
+#        '111A' => 1,
+#        '111P' => 1,
+        # '118A' => 1,
+        # '118P' => 1,
+    );
+
+    for my $volunteer ( $volunteers->rows ) {
+        my $intersections = $volunteer->intersections or next;
+        my @intersections = split m/,/, $intersections or next;
+        for my $intersection ( @intersections ) {
+            my( $location_id_ampm ) = $intersection =~ m/(\d+[AP])/;  # ignore any trailing day of the week information
+#            if( $double_up{ $location_id_ampm } ) {
+#                $double_up{ $location_id_ampm }--;
+#             } else {
+#                delete $shifts{ $location_id_ampm };  # taken
+#            }
+             delete $shifts{ $location_id_ampm } if $volunteers_needed{ $location_id_ampm }-- <= 1;
+        }
+    }
+
+    my @shifts = sort { $a cmp $b } keys %shifts;
+
+    return @shifts;
+
+}
+
+sub assignments_per_user {
+
+    my $email_address = shift or return [];
+
+    my $volunteer = $volunteers->find('email_address', $email_address, sub { lc $_[0] } ) or return [];
+
+    my @assignments;
+
+    my $intersections = $volunteer->intersections or return [];
+    for my $intersection ( split m/,/, $intersections ) {
         my( $location_id, $ampm, $day ) = $intersection =~ m/(\d+)([AP])(.*)/;
-        push @{ $doubled_up{"$location_id$ampm"} }, "$day: $name <$email>";
+        my $site = $count_sites->find('location_id', $location_id);
+        # $parsed_assignments .= "$day $ampm" .'M ' . $site->location_N_S . ' and ' . $site->location_W_E . " ($location_id)<br>\n";
+        # push @assignments, [ $location_id, $ampm, $day,  $site->location_N_S, $site->location_W_E ];
+        push @assignments, "$location_id$ampm$day"; # 128AThu
     }
+
+    @assignments = sort { $a cmp $b } @assignments;
+
+    return @assignments;
+
 }
 
-for my $doubled_up_intersection ( sort { $a cmp $b } keys %doubled_up ) {
-    next unless @{ $doubled_up{ $doubled_up_intersection } } >= 2 or grep $doubled_up_intersection eq $_, qw/136A 136P 115A 115P 111A 111P 133A 133P/;
-    print map "$_\n", $doubled_up_intersection . ': ' . join ', ', @{ $doubled_up{ $doubled_up_intersection } };
-}
+1;
 
-#
-# assignments by location id
-#
-
-print "\n---> assignments by location id\n\n";
-
-for my $count_site ( sort { $a->location_id cmp $b->location_id } $count_sites->rows ) {
-    for my $ampm ('A', 'P') {
-        my $location_id = $count_site->location_id . $ampm;
-        print map "$_\n", $location_id . ': ' . join ', ', @{ $doubled_up{ $location_id } };
-    }
-}
+$server->loop; # has to be last for plack
 
