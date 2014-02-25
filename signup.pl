@@ -2,14 +2,6 @@
 
 # run with:   /usr/local/bin/corona --E development signup.pl 
 
-# TODO:
-# XXX every hit, reload the csv files if they've changed since the last time we've read them -- test this
-# XXX detect conflicting assignments (same day, same am/pm) -- run a report at some point to make sure none of these raced in
-# XXX let people come back and just view their assignments
-# XXX hosting
-# XXX notes section with a prompt for food requests
-# XXX double check geolocation results
-
 use strict;
 
 use lib 'continuity/lib'; # dev version
@@ -51,6 +43,10 @@ sub read_signupform {
 # init volunteers
 
 my $volunteers = csv->new('volunteers.csv', 0);
+
+for my $column (qw/first_name last_name phone_number email_address training_session training_session_comment intersections comments/) {
+    $volunteers->add_column($column) if ! grep $_ eq $column, @{ $volunteers->headers };
+}
 
 # init count sites
 
@@ -245,11 +241,17 @@ warn "adding a new volunteer record";
 # start server
 
 my $server = Continuity->new(
-    adapter => Continuity::Adapt::PSGI->new( docroot => Cwd::getcwd() ),
-    port => 16000,
-    path_session => 1,
-    debug => 3,
+    # adapter => Continuity::Adapt::PSGI->new( docroot => Cwd::getcwd() ),
+    port => 5000,
+    # path_session => 1,
+    # debug => 3,
+    # mapper   => Continuity::Mapper->new(
+    #     callback => \&main,
+    #     path_session => 1,
+    #     cookie_session => 'sid',
+    # ),
 );
+
 
 my $scrubber = HTML::Scrubber->new;
 
