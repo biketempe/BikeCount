@@ -6,7 +6,11 @@ Run it with this command:
 
 perl signup.pl 
 
-This requires perl, the 'Continuty' CPAN package, 
+This requires perl, these CPAN packages:
+
+Continuty  (currently the development version from http://github.com/scrottie/continuity)
+String::Approx
+Email::Send::SMTP::Gmail
 
 It reads and writes count_sites.csv, volunteers.csv, and unassigned_locations.txt.
 count_sites.csv gets longitude,latitude fields set from the location_W_E,location_N_S fields.
@@ -38,7 +42,8 @@ is assigned to them.
 
 Assignments With Multiple People On Them -- Lists all of the locations that specify that
 they need two or more counters, and lists all of the counters assigned there (which may
-be zero).
+be zero).  It lists things that should have multiple people on them regardless of whether
+they actually do.
 
 People By Training Date -- Lists people expected at each training date for the purpose of
 figuring out how much pizza to order.  Also lists people by shift (Tues AM, Tues PM, Wed AM,
