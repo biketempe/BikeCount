@@ -4,6 +4,7 @@ use strict;
 use warnings;
 
 use XXX;
+use Cwd;
 use Text::CSV;
 use IO::Handle;
 use List::MoreUtils 'zip';
@@ -16,6 +17,9 @@ sub new {
     my $record_class = shift || 'csv::rec';
 
     my $csv = Text::CSV->new({ binary => 1 }) or die Text::CSV->error_diag;
+
+    open my $lock, '<', getcwd() or die;
+    flock $lock, 2;
 
     open my $fh, '<', $fn or die "$fn: $!";
 
@@ -50,8 +54,12 @@ sub new {
 
 sub reload {
     my $self = shift;
+
+    open my $lock, '<', getcwd() or die;
+    flock $lock, 2;
+
     if( -M $self->{in_filename} != $self->{mod_time} ) {
-warn "file changed; reloading; $self->{mod_time} vs " . -M $self->{in_filename};
+        # warn "file changed; reloading; $self->{mod_time} vs " . -M $self->{in_filename};
         my $new_self = ref($self)->new( $self->{in_filename}, $self->{header_row_num} );
         for my $k ( keys %$new_self ) {
             $self->{$k} = $new_self->{$k};
@@ -67,6 +75,9 @@ sub write {
 
     my $header = $self->{header};
     my $rows = $self->{rows};
+
+    open my $lock, '<', getcwd() or die;
+    flock $lock, 2;
 
     my $csv = Text::CSV->new({ binary => 1, eol => "\015\012" }) or die Text::CSV->error_diag;
 
