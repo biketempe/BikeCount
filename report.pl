@@ -6,8 +6,14 @@ use warnings;
 use csv;
 use Data::Dumper;
 use String::Approx;
+use Email::Send::SMTP::Gmail;
 
-# XXX deliver mail using password rq9gxJK7ccLJUMcO; put that in a little bin
+my @email_config = (
+    -smtp=>   'smtp.gmail.com',
+    -login=>  'bikecount@biketempe.org',
+    -pass=>   `/home/scott/bin/bikecountgmail`    # this is a small small executable that just outputs the password; you could also hard-code the password here
+);
+
 # XXX use the vols_needed field 
 # XXX mail merge function for assignments / training date
 # XXX let jenn edit the email assignment message before it goes out
@@ -17,9 +23,13 @@ use String::Approx;
 
 # test -- track who signed up since the last assignments email went out
 
+$SIG{USR1} = sub {
+    Carp::confess $@;
+};  
+
 use lib 'continuity/lib'; # dev version
 use Continuity;
-use Continuity::Adapt::PSGI;
+# use Continuity::Adapt::PSGI;
 
 use Data::Dumper;
 use IO::Handle;
@@ -69,7 +79,6 @@ my %people_by_location;  # indexed by location_id; eg 101A
 
 for my $volunteer ( $volunteers->rows ) {
     # first_name,last_name,phone_number,email_address,training_session,training_session_comment,intersections,comments
-    my $sketchy;
     my $name = join ' ', map $volunteer->{$_}, qw/first_name last_name/;
     my $email = $volunteer->email_address;
     $name = $email if $name eq ' ';
@@ -80,6 +89,7 @@ for my $volunteer ( $volunteers->rows ) {
         push @{ $people_by_location{"$location_id$ampm"} }, [ "$day: $name", $email ];
     }
 }
+
 #
 # find sketchy assignments where a new counter (or one who turned in no data in previous years) is on a high value intersection
 #
@@ -286,44 +296,69 @@ sub main {
 
         } elsif ( $action eq 'mail_assignments' ) {
 
-            my $mail = Email::Send::SMTP::Gmail->new( -smtp=>'smtp.gmail.com',
-                                                       -login=>'scrottie@biketempe.org',
-                                                       -pass=>`/home/scott/bin/biketempegmail`) or die;
+            my $action2 = $req->param('action2') || '';
 
-            for my $volunteer ( $volunteers->rows ) {
+            if( $action2 eq 'send') {
 
-                next if $volunteer->was_mailed_assignment;
+                 my $wording = $req->param('wording');
 
-                my $name = join ' ', $volunteer->first_name, $volunteer->last_name;
+                 my $mail = Email::Send::SMTP::Gmail->new( @email_config ) or die;
 
-                my $intersections = $volunteer->intersections or next;
-                my @intersections = split m/,/, $intersections or next;
+                 for my $volunteer ( $volunteers->rows ) {
 
-                my $all_descs = '';
+unless( $volunteer->email_address eq 'scott@slowass.net' or $volunteer->email_address eq 'jenn@biketempe.org' ) { $req->print("skipping " . $volunteer->email_address ."<br>\n"); next; }; # XXXXXXXXXXXx
 
-next unless $volunteer->email_address eq 'scott@slowass.net' or $volunteer->email_address eq 'jenn@biketempe.org'; # XXXXXXXXXXXx
+                     next if $volunteer->was_mailed_assignment;
 
-                for my $intersection ( @intersections ) {
+                     my $name = join ' ', $volunteer->first_name, $volunteer->last_name;
 
-                    my( $location_id, $ampm, $day ) = $intersection =~ m/(\d+)([AP])([A-Z][a-z]{2})/;
+                     my $intersections = $volunteer->intersections or next;
+                     my @intersections = split m/,/, $intersections or next;
 
-                    my $location = $count_sites->find( 'location_id', $location_id ) or die;
-
-                    my $desc = $location->location_id . ': ' . $location->location_N_S . ' and ' . $location->location_W_E;
-                    $all_descs .= $desc . "\n";
+                     my $all_descs = '';
 
 
-                }
+                     for my $intersection ( @intersections ) {
 
-                print "emailing " . $volunteer->email_address . "...\n";
+                         my( $location_id, $ampm, $day ) = $intersection =~ m/(\d+)([AP])([A-Z][a-z]{2})/;
 
-                my $body = <<EOF;
+                         my $location = $count_sites->find( 'location_id', $location_id ) or die;
 
-Dear $name,
+                         my $desc = $location->location_id . ': ' . $location->location_N_S . ' and ' . $location->location_W_E;
+                         $all_descs .= $desc . "\n";
+
+
+                     }
+
+                     $req->print("emailing " . $volunteer->email_address . "...<br>\n");
+
+                     my $body = $wording;
+                     $body =~ s{%NAME%}{$name};
+                     $body =~ s{%SHIFTS%}{$all_descs};
+
+                     $mail->send( 
+                         -to => $volunteer->email_address,
+                         -subject => "Subject: Your Bike Count shift details",
+                         -body => $body,
+                     ); # or die; # always dies
+
+                     $volunteer->was_mailed_assignment = scalar time;
+                     $volunteers->write;
+
+                 }
+
+                 $mail->bye;
+
+            } else {
+
+                $req->print(qq{
+                     <form method="post">
+                     <input type="hidden" name="action2" value="send">
+                     <textarea cols="80" rows="30" name="wording">
+Dear %NAME%,
 
 This is a form email with your bike count shift information.  Please double 
-check it and if it isn't what you expect, please contact one of us to sort it
-out.
+check it and if it isn't what you expect, please contact us to sort it out.
 
 You may download and print out the count sheet from here:
 
@@ -332,34 +367,22 @@ http://azcrap.org/bikecount/2013_count_sheet.pdf XXX
 You need two copies for each shift you have (one sheet per hour, and all shifts
 are two hours).  Let me know if you need sheets but can't print them.
 
-We're running behind on some things here.  The volunteer appreciation party XXX
-is probably Thursday the 28th, after the last count shift, at 7:30pm.  I'll
-send another email when we have confirmation there.
+The volunteer appreciation party is at XXX.
 
 Here are your shifts:
 
-$all_descs
+%SHIFTS%
 
 AM shifts are 7-9am.  PM shifts are 4-6pm.
 
 Thanks for being part of the count!
-
--scott
-
-EOF
-
-                $mail->send( 
-                    -to => $volunteer->email_address,
-                    -subject => "Subject: Your Bike Count shift details",
-                    -body => $body,
-                ); # or die; # always dies
-
-                $volunteer->was_mailed_assignment = scalar time;
-                $volunteers->write;
+                     </textarea>
+                     <br>
+                     <input type="submit" value="Send">  &lt-- this is the last step before email goes out
+                     </form>
+                 });
 
             }
-
-            $mail->bye;
 
         }
 
