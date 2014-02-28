@@ -18,8 +18,8 @@ sub new {
 
     my $csv = Text::CSV->new({ binary => 1 }) or die Text::CSV->error_diag;
 
-    open my $lock, '<', getcwd() or die;
-    flock $lock, 2;
+#    open my $lock, '<', getcwd() or die;
+#    flock $lock, 2;
 
     open my $fh, '<', $fn or die "$fn: $!";
 
@@ -55,8 +55,8 @@ sub new {
 sub reload {
     my $self = shift;
 
-    open my $lock, '<', getcwd() or die;
-    flock $lock, 2;
+#    open my $lock, '<', getcwd() or die;
+#    flock $lock, 2;
 
     if( -M $self->{in_filename} != $self->{mod_time} ) {
         # warn "file changed; reloading; $self->{mod_time} vs " . -M $self->{in_filename};
@@ -76,8 +76,8 @@ sub write {
     my $header = $self->{header};
     my $rows = $self->{rows};
 
-    open my $lock, '<', getcwd() or die;
-    flock $lock, 2;
+#    open my $lock, '<', getcwd() or die;
+#    flock $lock, 2;
 
     my $csv = Text::CSV->new({ binary => 1, eol => "\015\012" }) or die Text::CSV->error_diag;
 
