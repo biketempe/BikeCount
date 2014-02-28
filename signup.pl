@@ -157,7 +157,7 @@ sub get_compat_shifts {
     }       
     my @okay_shifts;
     for my $shift (@$pending_shifts) {
-        my( $location_id, $ampm ) = $shift =~ m/^(\d+)([AP])$/ or die $shift;
+        my( $location_id, $ampm ) = $shift =~ m/^(\d+)([AP])/ or die $shift; # ignore any Tues Wed etc field
         for my $day ('Tue', 'Wed', 'Thu') {
             push @okay_shifts, "$location_id$ampm$day" if ! exists $assignment_by_date_shift{ "$ampm$day" };
         }
@@ -234,12 +234,16 @@ warn "adding a new volunteer record";
         };
         $log->print("new assignment: $assignment\n");
 
-        my $intersections = $volunteer->intersections;
-        $intersections .= ',' if $intersections;
-        $intersections .= $assignment;
-        $volunteer->intersections = $intersections;
-
-        $error = '<br><br>Count shift recorded -- thanks!';
+        if( grep $_ eq "$assignment", get_compat_shifts( [ split(',', $volunteer->intersections) ], [ $assignment ])) {
+         
+            my $intersections = $volunteer->intersections;
+            $intersections .= ',' if $intersections;
+            $intersections .= $assignment;
+            $volunteer->intersections = $intersections;
+            $error = '<br><br>Count shift recorded -- thanks!';
+        } else {
+            $error = '<br><br>Count shift would conflict.  Not added.!';
+        }
 
 
     }
