@@ -56,17 +56,17 @@ geo::geocode( $count_sites );
 
 #
 
-my $am_shifts = qq{
-    <li class="ss-choice-item"><label class="ss-choice-label"><input name="shift" class="ss-q-radio" type="radio" value="ATue">Tuesday AM</label></li>
-    <li class="ss-choice-item"><label class="ss-choice-label"><input name="shift" class="ss-q-radio" type="radio" value="AWed">Wednesday AM</label></li>
-    <li class="ss-choice-item"><label class="ss-choice-label"><input name="shift" class="ss-q-radio" type="radio" value="AThu">Thursday AM</label></li>
-};
-
-my $pm_shifts = qq{
-    <li class="ss-choice-item"><label class="ss-choice-label"><input name="shift" class="ss-q-radio" type="radio" value="PTue">Tuesday PM</label></li>
-    <li class="ss-choice-item"><label class="ss-choice-label"><input name="shift" class="ss-q-radio" type="radio" value="PWed">Wednesday PM</label></li>
-    <li class="ss-choice-item"><label class="ss-choice-label"><input name="shift" class="ss-q-radio" type="radio" value="PThu">Thursday PM</label></li>
-};
+#my $am_shifts = qq{
+#    <li class="ss-choice-item"><label class="ss-choice-label"><input name="shift" class="ss-q-radio" type="radio" value="ATue">Tuesday AM</label></li>
+#    <li class="ss-choice-item"><label class="ss-choice-label"><input name="shift" class="ss-q-radio" type="radio" value="AWed">Wednesday AM</label></li>
+#    <li class="ss-choice-item"><label class="ss-choice-label"><input name="shift" class="ss-q-radio" type="radio" value="AThu">Thursday AM</label></li>
+#};
+#
+#my $pm_shifts = qq{
+#    <li class="ss-choice-item"><label class="ss-choice-label"><input name="shift" class="ss-q-radio" type="radio" value="PTue">Tuesday PM</label></li>
+#    <li class="ss-choice-item"><label class="ss-choice-label"><input name="shift" class="ss-q-radio" type="radio" value="PWed">Wednesday PM</label></li>
+#    <li class="ss-choice-item"><label class="ss-choice-label"><input name="shift" class="ss-q-radio" type="radio" value="PThu">Thursday PM</label></li>
+#};
 
 sub get_pois {
 
@@ -109,23 +109,15 @@ sub get_pending_sites {
     my $loc_id = shift;
 
     my %sites;
+    my %double_up;
 
     for my $site ( $count_sites->rows ) {
         next if $loc_id and $loc_id ne $site->location_id;
+        next if ! $site->vols_needed;
+        $double_up{ $site->location_id } = $site->vols_needed;
         $sites{ $site->location_id . 'A' } = $site;  # available until found otherwise
         $sites{ $site->location_id . 'P' } = $site;
     }
-
-    # XXX generalize this to use the 'vols_needed' of $count_sites
-
-    my %double_up = (
-#        '133A' => 1,
-#        '133P' => 1,
-#        '111A' => 1,
-#        '111P' => 1,
-        # '118A' => 1,
-        # '118P' => 1,
-    );
 
     for my $volunteer ( $volunteers->rows ) {
         my $intersections = $volunteer->intersections or next;
@@ -135,7 +127,7 @@ sub get_pending_sites {
             if( $double_up{ $location_id_ampm } ) {
                 $double_up{ $location_id_ampm }--;
              } else {
-                delete $sites{ $location_id_ampm };  # taken
+                delete $sites{ $location_id_ampm };  # taken or no volunteers requested this year
             }
         }
     }
@@ -155,23 +147,44 @@ sub get_pending_sites {
 
 }
 
+sub get_compat_shifts {
+    my $assignments = shift;
+    my $pending_shifts = shift;
+    my %assignment_by_date_shift;
+    for my $assignment ( @$assignments ) {
+        my( $location_id, $ampm, $day ) = $assignment =~ m/^(\d+)([AP])([A-Z][a-z]{2})$/ or die $assignment;
+        $assignment_by_date_shift{ "$ampm$day" } = $location_id; # not checking here for double booked
+    }       
+    my @okay_shifts;
+    for my $shift (@$pending_shifts) {
+        my( $location_id, $ampm ) = $shift =~ m/^(\d+)([AP])$/ or die $shift;
+        for my $day ('Tue', 'Wed', 'Thu') {
+            push @okay_shifts, "$location_id$ampm$day" if ! exists $assignment_by_date_shift{ "$ampm$day" };
+        }
+    }
+    return @okay_shifts;
+
+}
+
 sub get_assignments {
+    my $email_address = shift or return;
+    my $volunteer = $volunteers->find('email_address', $email_address, sub { lc $_[0] } ) or return;
+    my $assignments = $volunteer->intersections or return;
+    my @assignments = split m/,/, $assignments or return;
+    return wantarray ? @assignments : \@assignments;
+}
+
+sub get_assignments_text {
 
     # returns a textual list of assignments for a given user
 
     my $email_address = shift or return;
-
-    my $volunteer = $volunteers->find('email_address', $email_address, sub { lc $_[0] } ) or return;
+    my @assignments = get_assignments( $email_address );
 
     my $parsed_assignments = '';
 
-    my $intersections = $volunteer->intersections or return;
-warn "have intersections: ``$intersections''";
-    my @assignments = split m/,/, $intersections or return;
     for my $intersection (@assignments) {
-warn "have assignment ``$intersection''";
         my( $location_id, $ampm, $day ) = $intersection =~ m/(\d+)([AP])(.*)/;
-warn "searching for location_id ``$location_id''";
         my $site = $count_sites->find('location_id', $location_id);
         $parsed_assignments .= "$day $ampm" .'M ' . $site->location_N_S . ' and ' . $site->location_W_E . " ($location_id)<br>\n";
     }
@@ -209,10 +222,10 @@ warn "adding a new volunteer record";
 
         # record assignment
 
-        my $assignment = $signup_data->{location_id};
+        my $assignment = $signup_data->{location_id};  # eg: 130: Country Club Wy and Alameda Dr
         $log->print("location_id = $assignment for user $signup_data->{email}\n");
         $assignment =~ s{:.*}{};  # comes in the form of eg "101: Hardy and Southern"
-        $assignment .= $signup_data->{'shift'};  # of the format 'ATue'
+        $assignment .= $signup_data->{'shift'};  # eg: ATue
         $log->print("shift = $signup_data->{'shift'} for user $signup_data->{email}\n");
         $assignment =~ m/^\d{3}[AP][A-Z][a-z][a-z]$/ or do {
             warn "bad assignment: ``$assignment''";
@@ -283,18 +296,27 @@ sub main {
             $location_id =~ s{:.*}{};  # comes in the form of eg "101: Hardy and Southern"
 
             my $sites = get_pending_sites( $location_id );
+            $sites = [ sort { $a cmp $b } keys %$sites ];
+warn "email = " . $signup_data->{email_address};
+warn "pending sites = @$sites";
+            my @open_shifts = get_compat_shifts( scalar(get_assignments( $signup_data->{email_address})), $sites );
+warn "open_shifts = @open_shifts";
 
-            # $req->print(qq{<form id="shift_form">\n});
+            for my $shift ( @open_shifts ) {
+                my( $location_id, $ampm, $day ) = $shift =~ m/^(\d{3})([AP])([A-Z][a-z][a-z])$/;
+                # warn "shift = $shift day = $day ampm = $ampm";
+                my $nice_day = { Tue => 'Tuesday', Wed => 'Wednesday', Thu => 'Thursday', }->{$day};
+                my $nice_ampm = { P => 'PM', A => 'AM', }->{$ampm};
+                $req->print(qq{    <li class="ss-choice-item"><label class="ss-choice-label"><input name="shift" class="ss-q-radio" type="radio" value="$ampm$day"/>$nice_day $nice_ampm</label></li>\n});
+            }
 
-            exists $sites->{ $location_id . 'A' } and $req->print($am_shifts);
-
-            exists $sites->{ $location_id . 'P' } and $req->print($pm_shifts);
-
-            # $req->print(qq{</form>\n});
+            if( ! @open_shifts ) {
+                $req->print(qq{Either your AM or PM is full and your schedule cannot accommodate these shifts: @$sites.<br>\n});
+            }
 
         } elsif( $action eq 'get_assignments' ) {
 
-            my $assignments = get_assignments( $signup_data->{email_address} );
+            my $assignments = get_assignments_text( $signup_data->{email_address} );
             $req->print( $assignments || 'No current assignments for that email address' );
 
         } else {
@@ -319,7 +341,7 @@ sub main {
             }
             $html =~ s/AVAILABLEINTERSECTIONS/$available_intersections/;
 
-            my $assignments = get_assignments( $signup_data->{email_address} );
+            my $assignments = get_assignments_text( $signup_data->{email_address} );
             $html =~ s/CURRENT_ASSIGNMENTS/$assignments/;
 
             my $comments = $signup_data->{comments} || '';

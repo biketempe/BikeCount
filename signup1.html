@@ -56,6 +56,23 @@ function view_current_assignments() {
         document.getElementById('assignments').style.display = 'block';
     });
 }
+
+$(document).ready(function() {
+console.log("ready");
+    // $('#email_address').blur...
+    $('.input_element').blur( function() {
+console.log("blur: " + this.name + " " + this.value);
+        if( this.value ) {
+            var data = { "action" : "register" };
+            data[this.name] = this.value;
+            $.ajax({
+                type: "POST",
+                data: data
+            });
+        }
+    });
+});
+
 </script>
 
 <div class="errorbox-good">
@@ -63,7 +80,7 @@ function view_current_assignments() {
         <div class="ss-form-entry"><label class="ss-q-title" for="email_address">Email Address
             <span class="ss-required-asterisk">*</span></label>
             <label class="ss-q-help" for="email_address"></label>
-            <input name="email_address" class="ss-q-short" id="email_address" type="text" onload="this.focus()">
+            <input name="email_address" class="ss-q-short input_element" id="email_address" type="text" onload="this.focus()">
             <input type="button" value="<-- View Your Current Assignment(s)" onclick="view_current_assignments()">
 
         </div>
@@ -82,7 +99,7 @@ function view_current_assignments() {
         <div class="ss-form-entry">
             <label class="ss-q-title" for="first_name">First Name <span class="ss-required-asterisk">*</span></label>
             <label class="ss-q-help" for="first_name"></label>
-            <input name="first_name" class="ss-q-short" id="first_name" type="text">
+            <input name="first_name" class="ss-q-short input_element" id="first_name" type="text">
         </div>
     </div>
 </div>
@@ -92,14 +109,14 @@ function view_current_assignments() {
 <div class="ss-item ss-item-required ss-text"><div class="ss-form-entry"><label class="ss-q-title" for="last_name">Last Name
 <span class="ss-required-asterisk">*</span></label>
 <label class="ss-q-help" for="last_name"></label>
-<input name="last_name" class="ss-q-short" id="last_name" type="text"></div></div></div>
+<input name="last_name" class="ss-q-short input_element" id="last_name" type="text"></div></div></div>
 
 
 <div class="errorbox-good">
 <div class="ss-item ss-item-required ss-text"><div class="ss-form-entry"><label class="ss-q-title" for="phone_number">Phone Number
 <span class="ss-required-asterisk">*</span></label>
 <label class="ss-q-help" for="phone_number"></label>
-<input name="phone_number" class="ss-q-short" id="phone_number" type="text"></div></div></div>
+<input name="phone_number" class="ss-q-short input_element" id="phone_number" type="text"></div></div></div>
 
 <!-- early reg quiz -->
 
@@ -131,7 +148,7 @@ Please indicate which date you plan to attend.</label>
 
 <div>
     <input type="hidden" name="action" id="action" value="register">
-    <input type="hidden" name="shift" id="shift_input">
+    <!-- <input type="hidden" name="shift" id="shift_input"> -->
     <input name="location_id" class="ss-q-other" id="location_id" type="hidden">
 
 <!-- OSM map -->
@@ -143,6 +160,11 @@ Please indicate which date you plan to attend.</label>
             <div id="current_assignments">CURRENT_ASSIGNMENTS</div>
         </div>
     </div>
+</div>
+
+<div id="enter_your_email" style="display:none; background:#FFF;  border:solid 1px #BBBBBB; border-radius:5px; box-shadow:0px 0px 15px #999;">
+    Please first enter your email address above.
+    <input type="button" value="OK" onclick="javascript: $('#enter_your_email').hide()">
 </div>
 
 <div id="assignment_details" style="display:none; background:#FFF; border:solid 1px #BBBBBB; border-radius:5px; box-shadow:0px 0px 15px #999;">
@@ -158,33 +180,8 @@ Please indicate which date you plan to attend.</label>
     </ul>
     </div></div>
 
-    <script type="text/javascript">
-    
-    function copy_shift_value() {
-
-//        var shift_form = $('#shift_form');
-//        for (var i=0; i < shift_form.elements.length; i++) {
-//            if (elements[i].checked) {
-//                document.getElementById('shift_input').value = radios[i].value;
-//            }
-//        }
-
-//        var shift_form = $('#shift_form');
-//        var shift2 = shift_form.elements[0];
-//        for (var i=0; i < shift2.length; i++) {
-//            if (shift2[i].checked) {
-//                document.getElementById('shift_input').value = shift2[i].value;
-//            }
-//        }
-
-
-    }
-
-    </script>
-
     <div class="ss-item ss-navigate"><div class="ss-form-entry">
         <input name="continue" value="Add Assignment" type="button" onclick=" document.getElementById('ss-form').submit();">
-        <!-- <input value="Go Back" type="button" onclick="document.getElementById('assignment_details').style.display = 'none';"> -->
     </div></div>
 
 </div>
@@ -227,17 +224,21 @@ function draw_map() {
         (function() {
             var desc = pois[i].desc;
             new_marker.events.register('mousedown', new_marker, function (ob) {
-                // document.getElementById('intersection').value = desc;
-                document.getElementById('location_id').value = desc;
-                document.getElementById('intersection_name').innerHTML = desc;
-                $('#map_alternative').val( desc ); // select the same thing on the back-up select list below
-                $.ajax({
-                    type: "GET",
-                    url: "?action=get_times_for_intersection&location_id=" + desc
-                }).done(function( html ) {
-                    document.getElementById('assignment_details').style.display = 'block';
-                    document.getElementById('intersection_options').innerHTML = html;
-                });
+                if( ! document.getElementById('email_address').value ) {
+                    // no email addresss; show an error message
+                    document.getElementById('enter_your_email').style.display = 'block';
+                } else {
+                    document.getElementById('location_id').value = desc;
+                    document.getElementById('intersection_name').innerHTML = desc;
+                    $('#map_alternative').val( desc ); // select the same thing on the back-up select list below
+                    $.ajax({
+                        type: "GET",
+                        url: "?action=get_times_for_intersection&location_id=" + desc
+                    }).done(function( html ) {
+                        document.getElementById('assignment_details').style.display = 'block';
+                        document.getElementById('intersection_options').innerHTML = html;
+                    });
+                } 
             });
         })();
         markers.addMarker(new_marker);
