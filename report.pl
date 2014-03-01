@@ -22,6 +22,7 @@ my $password = 'jennguzy1';
 # XXX define sketchy assignments for jenn
 # XXXX fire both of these up on the linode and send it to jenn
 # XXXX do an extra sketchy where people sign up and bail on the sign up
+# XXXX make it stop doubling info up everytime it reloads the file
 
 # test -- track who signed up since the last assignments email went out
 
@@ -49,83 +50,94 @@ my $volunteers = csv->new('volunteers.csv', 0);
 
 my $count_sites = csv->new('count_sites.csv', 1);
 
-#
-# list of who has count shifts on which dates
-#
-
 my %people_by_shift;     # indexed by eg ATue
-
-for my $volunteer ( $volunteers->rows ) {
-
-    my $intersections = $volunteer->intersections or next;
-    my @intersections = split m/,/, $intersections or next;
-    # my %intersection_by_date_shift;
-
-    for my $intersection ( @intersections ) {
-
-        my( $location_id, $ampm, $day ) = $intersection =~ m/(\d+)([AP])([A-Z][a-z]{2})/;
-
-        push @{ $people_by_shift{"$ampm$day"} }, $volunteer;
-
-        # $intersection_by_date_shift{ "$ampm$day" } = $location_id;
-
-    }
-
-}
-
-#
-# find doubled up count shifts
-#
-
 my %people_by_location;  # indexed by location_id; eg 101A
-
-for my $volunteer ( $volunteers->rows ) {
-    # first_name,last_name,phone_number,email_address,training_session,training_session_comment,intersections,was_mailed_assignment,comments
-    my $name = join ' ', map $volunteer->{$_}, qw/first_name last_name/;
-    my $email = $volunteer->email_address;
-    $name = $email if $name eq ' ';
-    my @intersections = split m/,/, $volunteer->intersections;
-    for my $intersection (@intersections) {
-        my( $location_id, $ampm, $day ) = $intersection =~ m/(\d+)([AP])(.*)/;
-        # push @{ $people_by_location{"$location_id$ampm"} }, "$day: $name $email";  # XXX hyperlink
-        push @{ $people_by_location{"$location_id$ampm"} }, [ "$day: $name", $email ];
-    }
-}
-
-#
-# find sketchy assignments where a new counter (or one who turned in no data in previous years) is on a high value intersection
-#
-
-my %prev_volunteer_names = map { ( $_->Recorder => 1 ) } $previous->rows;
-
+my %prev_volunteer_names;
 my @sketchy_assignments;
 
-for my $volunteer ( $volunteers->rows ) {
-    # first_name,last_name,phone_number,email_address,training_session,training_session_comment,intersections,comments
-    my $sketchy;
-    my $name = join ' ', map $volunteer->{$_}, qw/first_name last_name/;
-    if( grep length $_, map $volunteer->{$_}, qw/first_name last_name/ ) {
-        my @matches = String::Approx::amatch($name, keys %prev_volunteer_names);
-        # print "$name matches: @matches\n";
-        @matches or $sketchy = 1;
-    } else {
-        # print $volunteer->email_address . ": no name!\n";
-        $sketchy = 1;
+
+sub recompute_stuff {
+
+    %people_by_shift = ();
+    %people_by_location = ();
+    %prev_volunteer_names = ();
+    @sketchy_assignments = ();
+
+    #
+    # list of who has count shifts on which dates
+    #
+    
+    for my $volunteer ( $volunteers->rows ) {
+    
+        my $intersections = $volunteer->intersections or next;
+        my @intersections = split m/,/, $intersections or next;
+        # my %intersection_by_date_shift;
+    
+        for my $intersection ( @intersections ) {
+    
+            my( $location_id, $ampm, $day ) = $intersection =~ m/(\d+)([AP])([A-Z][a-z]{2})/;
+    
+            push @{ $people_by_shift{"$ampm$day"} }, $volunteer;
+    
+            # $intersection_by_date_shift{ "$ampm$day" } = $location_id;
+    
+        }
+    
     }
-    if( $sketchy ) {
+    
+    #
+    # find doubled up count shifts
+    #
+    
+    for my $volunteer ( $volunteers->rows ) {
+        # first_name,last_name,phone_number,email_address,training_session,training_session_comment,intersections,was_mailed_assignment,comments
+        my $name = join ' ', map $volunteer->{$_}, qw/first_name last_name/;
         my $email = $volunteer->email_address;
         $name = $email if $name eq ' ';
-        # print "$name: " . $volunteer->intersections . "\n";
         my @intersections = split m/,/, $volunteer->intersections;
         for my $intersection (@intersections) {
             my( $location_id, $ampm, $day ) = $intersection =~ m/(\d+)([AP])(.*)/;
-            my $location = $count_sites->find( 'location_id', $location_id );
-            push @sketchy_assignments, [ $name, $intersection, $location->priority, $email ];
+            push @{ $people_by_location{"$location_id$ampm"} }, [ "$day: $name", $email ];
         }
     }
+    
+    #
+    # find sketchy assignments where a new counter (or one who turned in no data in previous years) is on a high value intersection
+    #
+    
+    %prev_volunteer_names = map { ( $_->Recorder => 1 ) } $previous->rows;
+    
+    
+    for my $volunteer ( $volunteers->rows ) {
+        # first_name,last_name,phone_number,email_address,training_session,training_session_comment,intersections,comments
+        my $sketchy;
+        my $name = join ' ', map $volunteer->{$_}, qw/first_name last_name/;
+        if( grep length $_, map $volunteer->{$_}, qw/first_name last_name/ ) {
+            my @matches = String::Approx::amatch($name, keys %prev_volunteer_names);
+            # print "$name matches: @matches\n";
+            @matches or $sketchy = 1;
+        } else {
+            # print $volunteer->email_address . ": no name!\n";
+            $sketchy = 1;
+        }
+        if( $sketchy ) {
+            my $email = $volunteer->email_address;
+            $name = $email if $name eq ' ';
+            # print "$name: " . $volunteer->intersections . "\n";
+            my @intersections = split m/,/, $volunteer->intersections;
+            for my $intersection (@intersections) {
+                my( $location_id, $ampm, $day ) = $intersection =~ m/(\d+)([AP])(.*)/;
+                my $location = $count_sites->find( 'location_id', $location_id );
+                push @sketchy_assignments, [ $name, $intersection, $location->priority, $email ];
+            }
+        }
+    }
+    
+    @sketchy_assignments = sort { $a->[2] <=> $b->[2] } @sketchy_assignments;
+    
 }
 
-@sketchy_assignments = sort { $a->[2] <=> $b->[2] } @sketchy_assignments;
+recompute_stuff();
 
 
 #
@@ -152,6 +164,7 @@ sub main {
 
         $count_sites->reload;
         $volunteers->reload;
+        recompute_stuff();
 
         my $action = $req->param('action') || 'default';
         $action = 'person' if $req->param('person');
