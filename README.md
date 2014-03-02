@@ -1,6 +1,8 @@
 IT goop for Tempe Bicycle Action Group's annual Bike Count online signup form
 as written for the 2013 count and modified for the 2014 count.
 
+This software is licensed under the GNU GPL v2 license; see below for details.
+
 We conduct a bike count during the middle of a week in late March or early April
 each year.  Volunteers pick up to six possible shifts:  AM and/or PM shifts
 from Tuesday through Thursday.  They also pick the locations to count at.
@@ -137,3 +139,18 @@ people on them regardless of whether they actually do.
 
 There's now a report by priority: 
 http://slowass.net:16000/?action=by_priority
+
+---------------------
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
