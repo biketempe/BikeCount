@@ -16,13 +16,7 @@ my @email_config = (
 
 my $password = 'jennguzy1';
 
-# XXX use the vols_needed field 
-# XXX mail merge function for assignments / training date
-# XXX let jenn edit the email assignment message before it goes out
-# XXX define sketchy assignments for jenn
-# XXXX fire both of these up on the linode and send it to jenn
-# XXXX do an extra sketchy where people sign up and bail on the sign up
-# XXXX make it stop doubling info up everytime it reloads the file
+# XXX do an extra sketchy where people sign up and bail on the sign up
 
 # test -- track who signed up since the last assignments email went out
 
@@ -32,7 +26,6 @@ $SIG{USR1} = sub {
 
 use lib 'continuity/lib'; # dev version
 use Continuity;
-# use Continuity::Adapt::PSGI;
 
 use Data::Dumper;
 use IO::Handle;
@@ -180,6 +173,7 @@ sub main {
             <a href="?action=finished_first_shift">When Peoples First Shifts Are</a><br>
             <a href="?action=by_last_name">People By Last Name</a><br>
             <a href="?action=unassigned_locations">Unassigned Locations</a><br>
+            <a href="?action=by_priority">Locations By Priority</a><br>
             <hr>
         } );
 
@@ -204,6 +198,16 @@ sub main {
                 my( $location_id, $ampm ) = $shift =~ m/(\d+)([AP])/;
                 my $loc = $count_sites->find('location_id', $location_id);
                 $req->print( $shift, ' ', $loc->location_W_E, ' and ', $loc->location_N_S, "<br>\n" ); 
+            }
+
+        } elsif ( $action eq 'by_priority' ) {
+
+            for my $count_site ( sort { $a->priority <=> $b->priority } $count_sites->rows ) {
+                for my $ampm ('A', 'P') {
+                    my $location_id = $count_site->location_id . $ampm;
+                    $req->print( map "$_\n", $count_site->priority . ': ' . $location_id . ': ' . join ', ', map qq{<a href="?person=$_->[1]">$_->[0]</a>}, @{ $people_by_location{ $location_id } } );
+                    $req->print("<br>\n");
+                }
             }
 
         } elsif ( $action eq 'by_last_name' ) {
@@ -443,27 +447,11 @@ sub get_pending_shifts {
         $volunteers_needed{ $site->location_id . 'P' } = $site->vols_needed;
     }
 
-    # XXX generalize this to use the 'vols_needed' of $count_sites
-
-    my %double_up = (
-#        '133A' => 1,
-#        '133P' => 1,
-#        '111A' => 1,
-#        '111P' => 1,
-        # '118A' => 1,
-        # '118P' => 1,
-    );
-
     for my $volunteer ( $volunteers->rows ) {
         my $intersections = $volunteer->intersections or next;
         my @intersections = split m/,/, $intersections or next;
         for my $intersection ( @intersections ) {
             my( $location_id_ampm ) = $intersection =~ m/(\d+[AP])/;  # ignore any trailing day of the week information
-#            if( $double_up{ $location_id_ampm } ) {
-#                $double_up{ $location_id_ampm }--;
-#             } else {
-#                delete $shifts{ $location_id_ampm };  # taken
-#            }
              delete $shifts{ $location_id_ampm } if $volunteers_needed{ $location_id_ampm }-- <= 1;
         }
     }
