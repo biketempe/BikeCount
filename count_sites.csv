@@ -1,4 +1,4 @@
-"2012 Tempe Bike Count Locations",,,,59,,,,,,
+"2014 Tempe Bike Count Locations temporarily pruned to highest priority",,,,59,,,,,,
 location_id,location_W_E,location_N_S,priority,vols_needed,latitude,longitude,automatic_geocoding_failed,geocoded_by,notes,
 101,Washington/Curry,"Mill Ave",25,1,33.43866,-111.94374,0,Geo::Coder::Geocoder::US,"scott: in Aarons notes to keep from his meeting with Cliff; says its the most important for releveance to SRP project and the relatively new installation of the cross-cut canal",
 102,"Rio Salado Pkwy","Mill Ave",38,2,33.42969,-111.94045,0,hand,major,
