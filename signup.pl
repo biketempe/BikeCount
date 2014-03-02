@@ -121,7 +121,7 @@ sub get_pending_sites {
         next if ! $site->vols_needed;
         $double_up{ $site->location_id . 'A' } = $site->vols_needed;
         $double_up{ $site->location_id . 'P' } = $site->vols_needed;
-warn $site->location_id . ' gets ' . $site->vols_needed if $site->vols_needed > 1;
+# warn $site->location_id . ' gets ' . $site->vols_needed if $site->vols_needed > 1;
         $sites{ $site->location_id . 'A' } = $site;  # available until found otherwise
         $sites{ $site->location_id . 'P' } = $site;
     }
