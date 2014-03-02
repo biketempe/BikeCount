@@ -2,10 +2,13 @@
 
 # run with:   /usr/local/bin/corona --E development signup.pl 
 
-# XXX when an intersection calls for two people, only let the 2nd person sign up on the same day as the first person
-# XXX report by priority
-# XXX try to send a confirmation email as soon as peopl sign up for a shift
-# XXX send an email to jenn when someone comments *and* send jenn a link to the csv
+# XXX filter HTML from emails to the bikecount mail box?
+
+# these require two (when they are done):
+#111,"10th St","Mill Ave",11,0,33.418945,-111.939799,0,Geo::Coder::Geocoder::US,"ASU cordon",
+#115,"University Dr","College Ave",9,2,33.421845,-111.934799,0,Geo::Coder::Geocoder::US,"ASU cordon",
+#133,"Apache Blvd","College Ave",7,2,33.414545,-111.934699,0,Geo::Coder::Geocoder::US,"ASU cordon",
+#136,"Spence St","Rural Rd",18,0,33.412845,-111.926198,0,Geo::Coder::Geocoder::US,"skip for 2014; lean on 135 just to the north instead",
 
 use strict;
 
@@ -25,10 +28,17 @@ use Geo::Coder::TomTom;
 use XXX;
 use Carp;
 use HTML::Scrubber;
+use Email::Send::SMTP::Gmail;
 
 use repop 'repop';
 use csv;
 use geo;
+
+my %email_config = (
+    -smtp=>   'smtp.gmail.com',
+    -login=>  'bikecount@biketempe.org',
+    -pass=>   `/home/scott/bin/bikecountgmail`    # this is a small small executable that just outputs the password; you could also hard-code the password here
+);
 
 $SIG{USR1} = sub {
     Carp::confess $@;
@@ -61,18 +71,6 @@ geo::geocode( $count_sites );
 
 #
 
-#my $am_shifts = qq{
-#    <li class="ss-choice-item"><label class="ss-choice-label"><input name="shift" class="ss-q-radio" type="radio" value="ATue">Tuesday AM</label></li>
-#    <li class="ss-choice-item"><label class="ss-choice-label"><input name="shift" class="ss-q-radio" type="radio" value="AWed">Wednesday AM</label></li>
-#    <li class="ss-choice-item"><label class="ss-choice-label"><input name="shift" class="ss-q-radio" type="radio" value="AThu">Thursday AM</label></li>
-#};
-#
-#my $pm_shifts = qq{
-#    <li class="ss-choice-item"><label class="ss-choice-label"><input name="shift" class="ss-q-radio" type="radio" value="PTue">Tuesday PM</label></li>
-#    <li class="ss-choice-item"><label class="ss-choice-label"><input name="shift" class="ss-q-radio" type="radio" value="PWed">Wednesday PM</label></li>
-#    <li class="ss-choice-item"><label class="ss-choice-label"><input name="shift" class="ss-q-radio" type="radio" value="PThu">Thursday PM</label></li>
-#};
-
 sub get_pois {
 
     my $all_flag = shift;
@@ -83,14 +81,16 @@ sub get_pois {
 
     if( $all_flag ) {
         for my $site ( $count_sites->rows ) {
-            $pending_sites->{ $site->location_id . 'A' } = $site;
-            $pending_sites->{ $site->location_id . 'P' } = $site;
+            $pending_sites->{ $site->location_id  } = $site;
         }
     } else {
         # normal case:  only show what's still available
         $pending_sites = get_pending_sites();
+        my %only_do_each_location_once;
+        for my $location_id_ampm ( keys %$pending_sites ) {
+            delete $pending_sites->{ $location_id_ampm } if $only_do_each_location_once{ $pending_sites->{$location_id_ampm}->location_id }++;
+        }
     }
-
 
     my @pois = sort { $a->{desc} cmp $b->{desc} } grep { $_->{lat} and $_->{lon} and $_->{desc} } map { 
         {
@@ -119,19 +119,27 @@ sub get_pending_sites {
     for my $site ( $count_sites->rows ) {
         next if $loc_id and $loc_id ne $site->location_id;
         next if ! $site->vols_needed;
-        $double_up{ $site->location_id } = $site->vols_needed;
+        $double_up{ $site->location_id . 'A' } = $site->vols_needed;
+        $double_up{ $site->location_id . 'P' } = $site->vols_needed;
+warn $site->location_id . ' gets ' . $site->vols_needed if $site->vols_needed > 1;
         $sites{ $site->location_id . 'A' } = $site;  # available until found otherwise
         $sites{ $site->location_id . 'P' } = $site;
     }
+
+# warn "double_up: " . Dumper \%double_up;
 
     for my $volunteer ( $volunteers->rows ) {
         my $intersections = $volunteer->intersections or next;
         my @intersections = split m/,/, $intersections or next;
         for my $intersection ( @intersections ) {
-            my( $location_id_ampm ) = $intersection =~ m/(\d+[AP])/;  # ignore any trailing day of the week information
-            if( $double_up{ $location_id_ampm } ) {
-                $double_up{ $location_id_ampm }--;
+            my( $location_id_ampm ) = $intersection =~ m/^(\d+[AP])/;  # ignore any trailing day of the week information
+            next if $loc_id and $location_id_ampm !~ m/^$loc_id/;
+            $double_up{ $location_id_ampm }--;
+warn "found an assignment to $location_id_ampm; $double_up{ $location_id_ampm } shifts remain";
+            if( $double_up{ $location_id_ampm } >= 1 ) {
+# warn "get pending sites hanging on to $location_id_ampm for now with this many slots left: $double_up{$location_id_ampm}";
              } else {
+# warn "get pending sites just trashed $location_id_ampm";
                 delete $sites{ $location_id_ampm };  # taken or no volunteers requested this year
             }
         }
@@ -148,25 +156,74 @@ sub get_pending_sites {
         }
     }
 
+# warn "get pending sites: " . Dumper(\%sites);
+
     return \%sites;
 
 }
 
 sub get_compat_shifts {
+
     my $assignments = shift;
     my $pending_shifts = shift;
+
+    # users existing assignments by shift
+
     my %assignment_by_date_shift;
     for my $assignment ( @$assignments ) {
         my( $location_id, $ampm, $day ) = $assignment =~ m/^(\d+)([AP])([A-Z][a-z]{2})$/ or die $assignment;
         $assignment_by_date_shift{ "$ampm$day" } = $location_id; # not checking here for double booked
+# warn "already have an assignment for $ampm$day";
     }       
-    my @okay_shifts;
-    for my $shift (@$pending_shifts) {
-        my( $location_id, $ampm ) = $shift =~ m/^(\d+)([AP])/ or die $shift; # ignore any Tues Wed etc field
-        for my $day ('Tue', 'Wed', 'Thu') {
-            push @okay_shifts, "$location_id$ampm$day" if ! exists $assignment_by_date_shift{ "$ampm$day" };
+
+    # build a table of location_ids that are two person with one person on them already
+
+    my %two_person_location;
+
+    for my $site ( $count_sites->rows ) {
+        next if $site->vols_needed < 2;
+        $two_person_location{ $site->location_id . 'A' } = 1;
+        $two_person_location{ $site->location_id . 'P' } = 1;
+    }
+
+    # figure out which two person locations already have one person on them so we can keep that same schedule
+    # this builds a table of eg 101A => Tue
+
+    my %already_started_two_person_shifts;
+
+    for my $volunteer ( $volunteers->rows ) {
+        my $intersections = $volunteer->intersections or next;
+        my @intersections = split m/,/, $intersections or next;
+        for my $intersection ( @intersections ) {
+            my( $location_id_ampm, $day ) = $intersection =~ m/^(\d+[AP])([A-Z][a-z]{2})$/ or die $intersection;
+            if( $two_person_location{ $location_id_ampm } ) {
+                $already_started_two_person_shifts{ $location_id_ampm } = $day;
+            }
         }
     }
+
+warn "already started two person shifts: " . Dumper(\%already_started_two_person_shifts);
+
+    # compatible shifts for a given location or set of locations
+
+    my @okay_shifts;
+    for my $shift (@$pending_shifts) {
+# warn "pending shift $shift";
+        my( $location_id, $ampm ) = $shift =~ m/^(\d+)([AP])/ or die $shift; # ignore any Tues Wed etc field
+        if( exists $already_started_two_person_shifts{ "$location_id$ampm" } ) {
+            # this is a multi-person intersection with one person already on it; if we have that day open, offer a shift on that same day
+            my $day = $already_started_two_person_shifts{ "$location_id$ampm" };
+# warn "$day is the day to double up $location_id$ampm";
+            push @okay_shifts, "$location_id$ampm$day" if ! exists $assignment_by_date_shift{ "$ampm$day" };
+        } else {
+# warn "simple case for $location_id$ampm";
+            # simple case of an unassigned one person intersection; offer all shifts that don't conflict
+            for my $day ('Tue', 'Wed', 'Thu') {
+                push @okay_shifts, "$location_id$ampm$day" if ! exists $assignment_by_date_shift{ "$ampm$day" };
+            }
+        }
+    }
+
     return @okay_shifts;
 
 }
@@ -219,7 +276,7 @@ warn "adding a new volunteer record";
     for my $key ( qw/first_name last_name phone_number training_session training_session_comment comments/ ) {
         if( $signup_data->{ $key } ) {
             $volunteer->{ $key } = $signup_data->{ $key };
-            $log->print("setting $key = $signup_data->{$key} for user $signup_data->{email}\n");
+            $log->print("setting $key = $signup_data->{$key} for user $signup_data->{email_address}\n");
         }
     }
 
@@ -228,10 +285,10 @@ warn "adding a new volunteer record";
         # record assignment
 
         my $assignment = $signup_data->{location_id};  # eg: 130: Country Club Wy and Alameda Dr
-        $log->print("location_id = $assignment for user $signup_data->{email}\n");
+        $log->print("location_id = $assignment for user $signup_data->{email_address}\n");
         $assignment =~ s{:.*}{};  # comes in the form of eg "101: Hardy and Southern"
         $assignment .= $signup_data->{'shift'};  # eg: ATue
-        $log->print("shift = $signup_data->{'shift'} for user $signup_data->{email}\n");
+        $log->print("shift = $signup_data->{'shift'} for user $signup_data->{email_address}\n");
         $assignment =~ m/^\d{3}[AP][A-Z][a-z][a-z]$/ or do {
             warn "bad assignment: ``$assignment''";
             $log->print("ERROR --> bad assignement: ``$assignment''\n");
@@ -239,17 +296,38 @@ warn "adding a new volunteer record";
         };
         $log->print("new assignment: $assignment\n");
 
-        if( grep $_ eq "$assignment", get_compat_shifts( [ split(',', $volunteer->intersections) ], [ $assignment ])) {
+        if( ! grep $_ eq "$assignment", get_compat_shifts( [ split(',', $volunteer->intersections) ], [ $assignment ])) {
          
+            $error = '<br><br>Count shift would conflict.  Not added!';
+
+        } else {
+
             my $intersections = $volunteer->intersections;
             $intersections .= ',' if $intersections;
             $intersections .= $assignment;
             $volunteer->intersections = $intersections;
             $error = '<br><br>Count shift recorded -- thanks!';
-        } else {
-            $error = '<br><br>Count shift would conflict.  Not added.!';
-        }
 
+            eval {
+                # send an email to ourselves
+                my $name = ( $signup_data->{first_name} && $signup_data->{last_name} ) ? "$signup_data->{first_name} $signup_data->{last_name} ($signup_data->{email_address})" : $signup_data->{email};
+                my $body = <<EOF;
+Hi there,
+
+$name just signed up for shift $assignment.
+EOF
+                $body .= "Phone number: $signup_data->{phone_number}\n" if $signup_data->{phone_number};
+                $body .= "Comments: $signup_data->{comments}\n" if $signup_data->{comments};
+                $body .= "Training session other field: $signup_data->{training_session_comment}\n" if $signup_data->{training_session_comment};
+                my $mail = Email::Send::SMTP::Gmail->new( %email_config ) or die;
+                $mail->send(
+                    -to => $email_config{'-login'},  # to ourselves
+                    -subject => "$name signed up for shift $assignment",
+                    -body => $body,
+                ); # or die; # always dies
+            };
+
+        }
 
     }
 
@@ -307,9 +385,9 @@ sub main {
             my $sites = get_pending_sites( $location_id );
             $sites = [ sort { $a cmp $b } keys %$sites ];
 warn "email = " . $signup_data->{email_address};
-warn "pending sites = @$sites";
+            # warn "pending sites = @$sites";
             my @open_shifts = get_compat_shifts( scalar(get_assignments( $signup_data->{email_address})), $sites );
-warn "open_shifts = @open_shifts";
+            # warn "open_shifts = @open_shifts";
 
             for my $shift ( @open_shifts ) {
                 my( $location_id, $ampm, $day ) = $shift =~ m/^(\d{3})([AP])([A-Z][a-z][a-z])$/;
@@ -332,7 +410,7 @@ warn "open_shifts = @open_shifts";
   
             my $all = $req->param('all');  # show all intersections, even those that are full?
 
-            my $signupform = read_signupform('signup1.html'); # every time, during dev
+            my $signupform = read_signupform('signup1.html');
 
             my $html = repop( $signupform, $signup_data );
 
