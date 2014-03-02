@@ -2,6 +2,11 @@
 
 # run with:   /usr/local/bin/corona --E development signup.pl 
 
+# XXX when an intersection calls for two people, only let the 2nd person sign up on the same day as the first person
+# XXX report by priority
+# XXX try to send a confirmation email as soon as peopl sign up for a shift
+# XXX send an email to jenn when someone comments *and* send jenn a link to the csv
+
 use strict;
 
 use lib 'continuity/lib'; # dev version
