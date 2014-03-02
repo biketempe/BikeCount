@@ -338,7 +338,7 @@ sub main {
 
                  for my $volunteer ( $volunteers->rows ) {
 
-unless( $volunteer->email_address eq 'scott@slowass.net' or $volunteer->email_address eq 'jenn@biketempe.org' ) { $req->print("skipping " . $volunteer->email_address ."<br>\n"); next; }; # XXXXXXXXXXXx
+unless( lc($volunteer->email_address) eq 'scott@slowass.net' or lc($volunteer->email_address) eq 'jenn@biketempe.org' ) { $req->print("skipping " . $volunteer->email_address ."<br>\n"); next; }; # XXXXXXXXXXXx
 
                      next if $volunteer->was_mailed_assignment;
 
