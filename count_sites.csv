@@ -55,13 +55,13 @@ location_id,location_W_E,location_N_S,priority,vols_needed,latitude,longitude,au
 153,"Apache Blvd",McAllister,53,0,33.414678,-111.930599,0,hand,"skip for 2014",
 154,Terrace,"Rural Rd",54,0,33.418745,-111.926198,0,Geo::Coder::Geocoder::US,"ASU cordon; skipping for 2014; lean on 135 to the south",
 155,"University Dr","McClintock Dr",5,0,33.417368,-111.922554,0,hand,"added 2013 per Guzy",
-156,"Crosscut Canal","Mill Ave",3,1,33.35157,-111.95782,0,Geo::Coder::TomTom,"start of things added for 2014","per Aaron & SRP; per Iwersen, SRP is considering adding a cut through west from here to Washington"
-157,"Curry Rd","College Ave",3,1,33.45151,-111.93519,0,Geo::Coder::TomTom,,"per Aaron & SRP"
+156,"Crosscut Canal","Mill Ave",3,1,33.438908,-111.943848,0,hand,"start of things added for 2014","per Aaron & SRP; per Iwersen, SRP is considering adding a cut through west from here to Washington"
+157,"Curry Rd","College Ave",3,1,33.440289,-111.930861,0,hand,,"per Aaron & SRP"
 158,"Washington Ave","Priest Dr",3,1,33.44314,-111.95556,0,Geo::Coder::TomTom,,"per Aaron & SRP"
 159,Broadway,"McClintock Dr",3,0,33.402808,-111.894546,0,Geo::Coder::TomTom,,"low volume every other year count site; bike access here is poor"
 160,"Broadway Dr","Hardy Rd",3,1,33.407397,-111.952164,0,hand,,"want more sites along Broadway before the Broadway improvement project; suggesting here and Roosevelt; next one over is Broadway and Mill"
 161,"University Ave","Price Rd",80,0,33.422013,-111.891954,0,Geo::Coder::TomTom,,"it would be a low volume every other year one, but there is no N/S bicycle infrastructure for miles, this only has a quasi bike lane, and motorists are aggressive here"
 162,Broadway,Roosevelt,3,1,33.44163,-111.92623,0,Geo::Coder::TomTom,,"Yabes said in 2013: If there's infrastructure at Roosevelt I think people will shift away from Ash and Hardy because it's more convinient for whatever reason; also part of the Broadway improvement project"
-163,University,Farmer,3,1,33.40017,-111.95479,0,Geo::Coder::TomTom,,"told this is getting a traffic light as part of Univ improvement"
+163,University,Farmer,3,1,33.421894,-111.944266,0,hand,,"told this is getting a traffic light as part of Univ improvement"
 164,"Southern Ave","McClintock Dr",3,0,33.394057,-111.920662,0,Geo::Coder::TomTom,,"low volume but these roads are high priority for bike infrastructure for TBAG due to lack of infrastructure in the area"
 165,"University Dr","Priest Dr",3,1,33.421936,-111.960908,1,hand,,"Univ from Farmer to Priest is getting improved but we aren't counting past Hardy right now"
