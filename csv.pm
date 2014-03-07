@@ -18,10 +18,13 @@ sub new {
 
     my $csv = Text::CSV->new({ binary => 1 }) or die Text::CSV->error_diag;
 
-#    open my $lock, '<', getcwd() or die;
-#    flock $lock, 2;
-
-    open my $fh, '<', $fn or die "$fn: $!";
+    my $fh;
+    if( ref $fn ) {
+        $fh = $fn;  # already a filehandle
+    } else {
+        open $fh, '+<', $fn or die "$fn: $!";
+        seek $fh, 0, 0;
+    }
 
     my $mod_time = -M $fn;
 
@@ -46,64 +49,57 @@ sub new {
         preheader_data => \@preheader_data, 
         header => $header, 
         header_row_num => $header_row_num, 
-        in_filename => $fn, 
+        # in_filename => $fn, 
         mod_time => $mod_time,
         record_class => $record_class,
+        fh => $fh,
     }, $package;
 }
 
 sub reload {
     my $self = shift;
 
-#    open my $lock, '<', getcwd() or die;
-#    flock $lock, 2;
 
-    if( -M $self->{in_filename} != $self->{mod_time} ) {
-        # warn "file changed; reloading; $self->{mod_time} vs " . -M $self->{in_filename};
-        my $new_self = ref($self)->new( $self->{in_filename}, $self->{header_row_num} );
+    if( -M $self->{fh} != $self->{mod_time} ) {
+        # warn "file changed; reloading; $self->{mod_time} vs " . -M $self->{fh};
+        my $new_self = ref($self)->new( $self->{fh}, $self->{header_row_num} );
         for my $k ( keys %$new_self ) {
             $self->{$k} = $new_self->{$k};
         }
-        $self->{mod_time} = -M $self->{in_filename};
+        $self->{mod_time} = -M $self->{fh};
     }
     return $self;
 }
 
 sub write {
     my $self = shift;
-    my $out_fn = shift || $self->{in_filename};
+    @_ and die;
 
+    my $fh = $self->{fh};
     my $header = $self->{header};
     my $rows = $self->{rows};
 
-#    open my $lock, '<', getcwd() or die;
-#    flock $lock, 2;
-
     my $csv = Text::CSV->new({ binary => 1, eol => "\015\012" }) or die Text::CSV->error_diag;
 
-    if( -e $out_fn )  {
-        unlink "$out_fn.bak" if -e "$out_fn.bak";
-        rename $out_fn, "$out_fn.bak" or die $!;
-    }
-
-    open my $out_fh, '>', $out_fn or die "$out_fn: $!";
+    seek $fh, 0, 0;
 
     # write the stuff that comes before the header
 
     for my $row ( @{ $self->{preheader_data} } ) {
-        $csv->print( $out_fh, $row );
+        $csv->print( $fh, $row ) or die $!;
     }
 
     # write the header 
 
-    $csv->print( $out_fh, $header );
+    $csv->print( $fh, $header ) or die $!;
 
     # write the data
 
     for my $row ( @$rows ) {
         my @row_data = map { $row->{$_} } @$header;
-        $csv->print( $out_fh, \@row_data ); 
+        $csv->print( $fh, \@row_data ) or die $!;
     }
+    $fh->flush;
 }
 
 sub find {
