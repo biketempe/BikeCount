@@ -33,6 +33,10 @@ use Carp;
 use HTML::Scrubber;
 use Email::Send::SMTP::Gmail;
 
+ use Coro::Debug;
+
+our $debug_server = new_unix_server Coro::Debug "/tmp/bikecount_debug.sock";
+
 use repop 'repop';
 use csv;
 use geo;
@@ -43,9 +47,8 @@ my %email_config = (
     -pass=>   `/home/scott/bin/bikecountgmail`    # this is a small small executable that just outputs the password; you could also hard-code the password here
 );
 
-$SIG{USR1} = sub {
-    Carp::confess $@;
-};
+$SIG{USR1} = sub { Carp::confess $@; };
+$SIG{ALRM} = sub { Carp::confess $@; };
 
 open my $log, '>>', 'signup.log' or die $!;
 $log->autoflush(1);
@@ -138,7 +141,7 @@ sub get_pending_sites {
             my( $location_id_ampm ) = $intersection =~ m/^(\d+[AP])/;  # ignore any trailing day of the week information
             next if $loc_id and $location_id_ampm !~ m/^$loc_id/;
             $double_up{ $location_id_ampm }--;
-warn "found an assignment to $location_id_ampm; $double_up{ $location_id_ampm } shifts remain";
+# warn "found an assignment to $location_id_ampm; $double_up{ $location_id_ampm } shifts remain";
             if( $double_up{ $location_id_ampm } >= 1 ) {
 # warn "get pending sites hanging on to $location_id_ampm for now with this many slots left: $double_up{$location_id_ampm}";
              } else {
@@ -365,6 +368,8 @@ sub main {
 
     while(1) {
 
+        alarm 60;
+
         $count_sites->reload;
         $volunteers->reload;
 
@@ -442,6 +447,8 @@ warn "email = " . $signup_data->{email_address};
             $req->print( $html );
 
         }
+
+        alarm 0;
    
         $req->next; # Get their response to that
 
