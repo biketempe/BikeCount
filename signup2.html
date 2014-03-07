@@ -42,14 +42,14 @@ above.
 <br>
 <div class="ss-form">
 
-<form method="POST" id="ss-form" action="http://azcrap.org:5000/">
+<form method="POST" id="ss-form">
 
 <script type="text/javascript">
 
 function view_current_assignments() {
     $.ajax({
         type: "GET",
-        url: "?action=get_assignments&email_address=" + document.getElementById('email_address').value
+        url: "?action=get_assignments&email=" + encodeURIComponent(document.getElementById('email_address').value)
     }).done(function( html ) {
         document.getElementById('current_assignments').innerHTML = html;
         document.getElementById('current_assignments_popup').innerHTML = html;
@@ -246,7 +246,7 @@ function draw_map() {
                     $('#map_alternative').val( desc ); // select the same thing on the back-up select list below
                     $.ajax({
                         type: "GET",
-                        url: "?action=get_times_for_intersection&location_id=" + desc
+                        url: "?action=get_times_for_intersection&location_id=" + desc + "&email=" + encodeURIComponent(document.getElementById('email_address').value)
                     }).done(function( html ) {
                         document.getElementById('assignment_details').style.display = 'block';
                         document.getElementById('intersection_options').innerHTML = html;
@@ -280,7 +280,7 @@ function draw_map() {
         document.getElementById('intersection_name').innerHTML = desc;
         $.ajax({
             type: "GET",
-            url: "?action=get_times_for_intersection&location_id=" + $.escape(desc) + "&email" + $.escape(document.getElementById('email_address'))
+            url: "?action=get_times_for_intersection&location_id=" + encodeURIComponent(desc) + "&email=" + encodeURIComponent(document.getElementById('email_address'))
         }).done(function( html ) {
             document.getElementById('assignment_details').style.display = 'block';
             document.getElementById('intersection_options').innerHTML = html;
