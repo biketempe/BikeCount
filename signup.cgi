@@ -358,6 +358,7 @@ do {
     my $action = $req->param('action') || 'default';
     my $email = $req->param('email');
     $log->print("action = $action\n");
+    $log->print("email = $email\n");
 
     my $signup_data = { };
     my $error;
@@ -388,7 +389,6 @@ do {
 
         my $sites = get_pending_sites( $location_id );
         $sites = [ sort { $a cmp $b } keys %$sites ];
-$log->print("email = " . $email . "\n");
         # warn "pending sites = @$sites";
         my @open_shifts = get_compat_shifts( scalar(get_assignments( $email )), $sites );
         # warn "open_shifts = @open_shifts";
