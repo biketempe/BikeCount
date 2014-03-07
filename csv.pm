@@ -23,6 +23,7 @@ sub new {
         $fh = $fn;  # already a filehandle
     } else {
         open $fh, '+<', $fn or die "$fn: $!";
+        flock $fh, 2;
         seek $fh, 0, 0;
     }
 
@@ -163,6 +164,8 @@ do {
 
     # test
 
+    $SIG{USR1} = sub { Carp::confess @_; };
+
     my $test_data = <<'EOF';
 "Location ID",Time,Recorder,"Rec Count",Page,Segment,Direction,Count,"Gender ",Age_Y,Age_O,Helmet,"Wrong way",Sidewalk,Distracted,Pedestrian,Motoroized,Electric,Decor/Lights,"ADA Peds","ADA Chairs",Notes,Construction,LocRank,LocRankUniq,Seg,Seg1,LocTime,LocTimeDir,,"Gender ",Age_Y,Age_O,Helmet,"Wrong way",Sidewalk,Distracted,,"Cordon in","Cordon out","Bike Lane Size","Bike Lane"
 1101,AM,"Joe (Okie) Oconnor",1,1,1,1,2,,,,2,,,,1,,,,,,,,1,1,1,101_1,101AM,101AMNS,,,,,,,,,,0,0,3,1
@@ -188,6 +191,7 @@ EOF
     $rec->Direction = '212';
     is $rec->Direction, '212', 'Updated Direction field as expected';
     $me->write;
+    $me = undef;  # needed to release the flock
 
     $me = csv->new('/tmp/test.csv', 0);
     ok $me, 'Re-read the csv file after write';
@@ -204,6 +208,7 @@ EOF
     $rec->Recorder = 'Fred';
     $rec->Sidewalk = 10;
     $me->write;
+    $me = undef;
 
     $me = csv->new('/tmp/test.csv', 0);
     $rec = $me->find('Location ID', 4321);
