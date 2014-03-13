@@ -2,8 +2,8 @@
 
 # XXX filter HTML from emails to the bikecount mail box?
 # XXX send email to the person who volunteers when they sign up for an intersection
-# XXX post back the email address field every AJAX hit
 # XXX fix file locking
+# XXX when sending the "someone signed up" email to the management address, use the email address if a name isn't available yet
 
 # these require two (when they are done):
 #111,"10th St","Mill Ave",11,0,33.418945,-111.939799,0,Geo::Coder::Geocoder::US,"ASU cordon",
