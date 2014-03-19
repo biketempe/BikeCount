@@ -5,7 +5,7 @@ location_id,location_W_E,location_N_S,priority,vols_needed,latitude,longitude,au
 103,"Rio Salado Pkwy","Rural Rd",16,1,33.429245,-111.926099,1,Geo::Coder::Geocoder::US,,
 104,"Rio Salado Pkwy","McClintock Dr",24,1,33.429145,-111.908898,1,Geo::Coder::Geocoder::US,,
 105,"Rio Salado Pkwy","Hardy Dr",86,0,33.430948,-111.95246,0,hand,"skip for 2014; very slow and kind of redundant with TCA bridge",
-106,"5th St","Mill Ave",13,2,33.425445,-111.939799,0,Geo::Coder::Geocoder::US,major,
+106,"5th St","Mill Ave",13,1,33.425445,-111.939799,0,Geo::Coder::Geocoder::US,major,"generally reserved for Kolby if he wants it; should be a 2 person intersection but I've marked it as 1 (sdw)"
 107,"5th St","Forest Ave",21,0,33.425445,-111.936499,0,Geo::Coder::Geocoder::US,"skip for 2014; lean on 108 and 106",
 108,"5th St","Farmer Ave",51,1,33.425445,-111.944099,1,Geo::Coder::Geocoder::US,,
 109,"5th St","Hardy Dr",28,0,33.425545,-111.952199,0,Geo::Coder::Geocoder::US,"skip for 2014; slow; wow, people really don't go very far from the university and its kind of industrial west past here",
