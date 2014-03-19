@@ -249,7 +249,7 @@ sub get_assignments_text {
 
     # returns a textual list of assignments for a given user
 
-    my $email_address = shift or return;
+    my $email_address = lc(shift()) or return;
     my @assignments = get_assignments( $email_address );
 
     my $parsed_assignments = '';
@@ -274,7 +274,7 @@ sub update_volunteer_data {
 
     my $error;
 
-    my $volunteer = $volunteers->find('email_address', $signup_data->{email_address} );
+    my $volunteer = $volunteers->find('email_address', $signup_data->{email_address}, sub { lc $_[0] } );
 
     if( ! $volunteer ) {
         $volunteer = $volunteers->add;
@@ -359,6 +359,10 @@ do {
     my $email = $req->param('email');
     $log->print("action = $action\n");
     $log->print("email = $email\n");
+    $log->print("user agent = $ENV{HTTP_USER_AGENT}\n"); # who is sending email = [object HTMLInputElement]?
+
+    my $mapnote = '';
+    $mapnote = '<br><font color="red">iOS Users:  Use the select box below the map.</font>' if $ENV{HTTP_USER_AGENT} =~ m{iPhone} or $ENV{HTTP_USER_AGENT} =~ m{iPad};
 
     my $signup_data = { };
     my $error;
@@ -441,6 +445,8 @@ do {
     $html =~ s/COMMENTS/$comments/;
 
     $html =~ s/ERROR/$error/;
+
+    $html =~ s/MAPNOTE/$mapnote/;
 
     $req->print( $html );
 
