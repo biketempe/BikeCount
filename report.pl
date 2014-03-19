@@ -39,9 +39,8 @@ use geo;
 my $previous = csv->new('count_data_2013_post_cliff_fixes_extra_data_prune.csv', 0);
 # my $previous = csv->new('2011_2012_combined.csv', 0);
 
-my $volunteers = csv->new('volunteers.csv', 0);
-
-my $count_sites = csv->new('count_sites.csv', 1);
+my $volunteers; # = csv->new('volunteers.csv', 0);
+my $count_sites; # = csv->new('count_sites.csv', 1);
 
 my %people_by_shift;     # indexed by eg ATue
 my %people_by_location;  # indexed by location_id; eg 101A
@@ -130,9 +129,6 @@ sub recompute_stuff {
     
 }
 
-recompute_stuff();
-
-
 #
 #
 #
@@ -155,8 +151,11 @@ sub main {
             
     while(1) {
 
-        $count_sites->reload;
-        $volunteers->reload;
+        $volunteers = csv->new('volunteers.csv', 0);
+        $count_sites = csv->new('count_sites.csv', 1);
+        # $count_sites->reload;
+        # $volunteers->reload;
+
         recompute_stuff();
 
         my $action = $req->param('action') || 'default';
@@ -256,6 +255,11 @@ sub main {
             my @pending_shifts = get_pending_shifts();  # we do this after we possibily delete an assignment
             $req->print( qq{<form method="post"><input type="hidden" name="action2" value="add_assignment"><select name="new_assignment">} . join('', map qq{<option value="$_">$_</option>}, @pending_shifts) . qq{</select><select name="day"><option>Tue</option><option>Wed</option><option>Thu</Option></select><input type="submit" value="Add"></form><br>\n} );
 
+            for my $field ( split m/,/, "first_name,last_name,phone_number,email_address,training_session,training_session_comment,intersections,was_mailed_assignment,comments" ) {
+                $req->print( "$field: ", $volunteer->$field, "<br>\n" );
+            }
+            $req->print("<br>\n");
+
             for my $assignment ( @assignments ) {
                 # my( $location_id, $ampm, $day, $location_N_S, $location_W_E ) = @$assignment;
                 $req->print(qq{<nobr>$assignment&nbsp;<form method="post"><input type="hidden" name="action2" value="delete_assignment"><input type="hidden" name="person" value="$email"><input type="hidden" name="assignment" value="$assignment"><input type="submit" value="delete"></form></nobr><br>\n});
@@ -319,14 +323,16 @@ sub main {
             my %people_by_training_date;
 
             for my $volunteer ( $volunteers->rows ) {
-                $people_by_training_date{ $volunteer->training_session }->{ $volunteer->email_address }++;
+                $people_by_training_date{ $volunteer->training_session }->{ $volunteer->email_address } = $volunteer;
             }
 
             for my $date (keys %people_by_training_date) {
                 my $people = $people_by_training_date{$date};
                 $req->print( "<br><br>\ntraining date $date: @{[ scalar keys %$people ]} people registered<br>\n");
                 for my $person ( sort { $a cmp $b } keys %$people ) {
-                    $req->print( qq{<a href="?person=$person">$person</a><br>\n} );
+                    my $notes = $people_by_training_date{$date}{$person}->training_session_comment || '';
+                    $notes = " Comment: $notes" if $notes;
+                    $req->print( qq{<a href="?person=$person">$person</a>$notes<br>\n} );
                 }
             }
 
@@ -423,9 +429,13 @@ Thanks for being part of the count!
 
         }
 
-
     } # end while 1
        continue {
+
+        # needed to release the locks
+        $volunteers = undef;
+        $count_sites = undef;
+
         $req->next; # Get their response to that
     }
 
