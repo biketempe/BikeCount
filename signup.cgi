@@ -204,7 +204,7 @@ sub get_compat_shifts {
         my $intersections = $volunteer->intersections or next;
         my @intersections = split m/,/, $intersections or next;
         for my $intersection ( @intersections ) {
-            my( $location_id_ampm, $day ) = $intersection =~ m/^(\d+[AP])([A-Z][a-z]{2})$/ or die $intersection;
+            my( $location_id_ampm, $day ) = $intersection =~ m/^(\d+[AP])([A-Z][a-z]{2})$/ or warn "bad intersection: $intersection";
             if( $two_person_location{ $location_id_ampm } ) {
                 $already_started_two_person_shifts{ $location_id_ampm } = $day;
             }
@@ -414,6 +414,7 @@ do {
 
         my $assignments = get_assignments_text( $email );
         $req->print( $assignments || 'No current assignments for that email address' );
+        $log->print("current assignments for that user are:\n$assignments\n");
         exit;
 
     }
