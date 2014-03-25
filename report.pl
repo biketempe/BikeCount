@@ -67,7 +67,7 @@ sub recompute_stuff {
     
         for my $intersection ( @intersections ) {
     
-            my( $location_id, $ampm, $day ) = $intersection =~ m/(\d+)([AP])([A-Z][a-z]{2})/;
+            my( $location_id, $ampm, $day ) = $intersection =~ m/(\d+)([AP])([A-Z][a-z]{2})/ or do { warn "bad intersection: $intersection"; next; };
     
             push @{ $people_by_shift{"$ampm$day"} }, $volunteer;
     
@@ -183,6 +183,7 @@ sub main {
             # assignments by location id
 
             for my $count_site ( sort { $a->location_id cmp $b->location_id } $count_sites->rows ) {
+                next unless $count_site->vols_needed;
                 for my $ampm ('A', 'P') {
                     my $location_id = $count_site->location_id . $ampm;
                     $req->print( map "$_\n", $location_id . ': ' . join ', ', map qq{<a href="?person=$_->[1]">$_->[0]</a>}, @{ $people_by_location{ $location_id } } );
@@ -202,6 +203,7 @@ sub main {
         } elsif ( $action eq 'by_priority' ) {
 
             for my $count_site ( sort { $a->priority <=> $b->priority } $count_sites->rows ) {
+                next unless $count_site->vols_needed;
                 for my $ampm ('A', 'P') {
                     my $location_id = $count_site->location_id . $ampm;
                     $req->print( map "$_\n", $count_site->priority . ': ' . $location_id . ': ' . join ', ', map qq{<a href="?person=$_->[1]">$_->[0]</a>}, @{ $people_by_location{ $location_id } } );
@@ -295,10 +297,20 @@ sub main {
 
         } elsif ( $action eq 'doubled_up' ) {
 
-            for my $people_by_location_intersection ( sort { $a cmp $b } keys %people_by_location ) {
-                next unless @{ $people_by_location{ $people_by_location_intersection } } >= 2 or grep $people_by_location_intersection eq $_, qw/136A 136P 115A 115P 111A 111P 133A 133P/; # XXX
-                # $req->print( map "$_<br>\n", $people_by_location_intersection . ': ' . join ', ', @{ $people_by_location{ $people_by_location_intersection } } );
-                $req->print( map "$people_by_location_intersection: $_<br>\n", join ', ', map qq{<a href="?person=$_->[1]">$_->[0]</a>}, @{ $people_by_location{ $people_by_location_intersection } } );
+#            for my $people_by_location_intersection ( sort { $a cmp $b } keys %people_by_location ) {
+#                next unless @{ $people_by_location{ $people_by_location_intersection } } >= 2;
+#                # $req->print( map "$_<br>\n", $people_by_location_intersection . ': ' . join ', ', @{ $people_by_location{ $people_by_location_intersection } } );
+#                $req->print( map "$people_by_location_intersection: $_<br>\n", join ', ', map qq{<a href="?person=$_->[1]">$_->[0]</a>}, @{ $people_by_location{ $people_by_location_intersection } } );
+#            }
+
+            for my $count_site ( sort { $a->location_id cmp $b->location_id } $count_sites->rows ) {
+                next unless $count_site->vols_needed;
+                for my $ampm ('A', 'P') {
+                    my $location_id = $count_site->location_id . $ampm;
+                    next unless $count_site->vols_needed >= 2 or @{ $people_by_location{ $location_id } || [] } >= 2;
+                    $req->print( map "$_\n", $location_id . ': volunteers needed: ' . $count_site->vols_needed . ': ' . join ', ', map qq{<a href="?person=$_->[1]">$_->[0]</a>}, @{ $people_by_location{ $location_id } } );
+                    $req->print("<br>\n");
+                }
             }
 
         } elsif ( $action eq 'sketchy' ) {
@@ -362,12 +374,11 @@ sub main {
 
                      for my $intersection ( @intersections ) {
 
-                         my( $location_id, $ampm, $day ) = $intersection =~ m/(\d+)([AP])([A-Z][a-z]{2})/;
+                         my( $location_id, $ampm, $day ) = $intersection =~ m/(\d+)([AP])([A-Z][a-z]{2})/ or do { warn "bad assignment $intersection for volunteer " . $volunteer->email_address; next; };
 
-                         my $location = $count_sites->find( 'location_id', $location_id ) or die;
+                         my $location = $count_sites->find( 'location_id', $location_id ) or do { warn "failed to get a location_id for volunteer " . $volunteer->email_address; next; };
 
-                         my $desc = $location->location_id . ': ' . $location->location_N_S . ' and ' . $location->location_W_E;
-                         $all_descs .= $desc . "\n";
+                         $all_descs .= $location->location_id . ': ' . $location->location_N_S . ' and ' . $location->location_W_E . " ${ampm}M shift, $day\n";
 
 
                      }
@@ -451,6 +462,7 @@ sub get_pending_shifts {
     my %volunteers_needed;
 
     for my $site ( $count_sites->rows ) {
+        next unless $site->vols_needed;
         $shifts{ $site->location_id . 'A' } = $site;  # available until found otherwise
         $shifts{ $site->location_id . 'P' } = $site;
         $volunteers_needed{ $site->location_id . 'A' } = $site->vols_needed;
