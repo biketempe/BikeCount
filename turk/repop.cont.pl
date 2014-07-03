@@ -77,8 +77,7 @@ sub main {
         $request->print(qq{ <a href="?row_num=$row_num_minus_1">&lt;&lt; Page $row_num_minus_1</a> }) if $row_num > 0;
         $request->print("Page $row_num");
         $request->print(qq{ <a href="?row_num=$row_num_plus_1">Page $row_num_plus_1 &gt;&gt;</a> }) if $row_num < $#rows;
-        $request->print(qq{ <nobr><form method="post">Jump to page <input name="row_num" type="text" size="3"/><input type="submit" value="Go"></form></nobr> });
-
+        $request->print(qq{ <nobr><form method="get">Jump to page <input name="row_num" type="text" size="3"/><input type="submit" value="Go"></form></nobr> });
         show_row( $request, $rows[ $row_num ] );
 
         # wait for the next request
@@ -102,10 +101,13 @@ sub update_row {
     # write all of the rows back out again
     # if we see the row that's supposed to be modified, modify it first
 
+    $header_row->[0] eq 'HITId' or die;
+    my $requested_hitid = $request->param('HITId') or die "not HITId posted in update";
+
     for my $row (@rows) {
 
         if( $row->[0] eq $row_to_modify->[0] ) {
-            $header_row->[0] eq 'HITId' or die; # sanity check; we should be comparing the HITIds to make sure we're editing the exact right one
+            $row->[0] eq $requested_hitid or die "HITId requested $requested_hitid vs actual $row->[0]"; # sanity check; we should be comparing the HITIds to make sure we're editing the exact right one
             my %params = $request->param;
             for my $k (keys %params) {
                 next if $k eq 'submit';
@@ -162,6 +164,7 @@ sub show_row {
         Approve:  Place an "x" here if the data entry work needed few or no corrections:  <input type="text" name="Approve" size="1" maxlength="1"/><br>
         Reject: Describe the problems with the data entry work here if it needed more than a couple of corrections: <input type="text" name="Reject" size="80"/><br>
         <input type="submit" name="submit" value="Save Changes"/>
+        <input type="hidden" name="HITId" value="$row->[0]"/>
     } . $html . qq{
         </form>
     };
