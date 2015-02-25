@@ -1,3 +1,4 @@
+#!/home/biketempe/bin/perl
 #!/usr/local/bin/perl
 
 # XXX filter HTML from emails to the bikecount mail box?
@@ -13,6 +14,8 @@
 
 use strict;
 
+use lib '/home/biketempe/perl5/lib/perl5/';
+
 use CGI;
 use CGI::Carp 'fatalsToBrowser';
 use Data::Dumper;
@@ -23,7 +26,7 @@ use Cwd;
 use JSON::PP;
 # use Geo::Coder::RandMcnally; # overlaps most of the intersections
 # use Geo::Coder::Geocoder::US;
-use Geo::Coder::TomTom;
+use Geo::Coder::TomTom; # best so far
 use XXX;
 use Carp;
 use HTML::Scrubber;
