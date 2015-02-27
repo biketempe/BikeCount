@@ -216,7 +216,7 @@ sub main {
             for my $volunteer ( sort { $a->last_name cmp $b->last_name } $volunteers->rows ) {
                 my $name = join ' ', map $volunteer->{$_}, qw/first_name last_name/;
                 my $email = $volunteer->email_address;
-                $req->print( qq{<a href="?person=$email">$name $email</a><br>\n} );
+                $req->print( qq{<a href="?person=$email">$name &lt;$email&gt;</a><br>\n} );
             }
 
         } elsif ( $action eq 'person' ) {
@@ -283,7 +283,7 @@ sub main {
                     next if $also_had_previous_shift{ $volunteer->email_address };
                     my $name = join ' ', map $volunteer->{$_}, qw/first_name last_name/;
                     my $email = $volunteer->email_address;
-                    $req->print( qq{<a href="?person=$email">$name $email</a><br>\n} );
+                    $req->print( qq{<a href="?person=$email">$name &lt;$email&gt;</a><br>\n} );
                 }
 
                 # $req->print("\n---> count shift $shift (all):<br>\n");

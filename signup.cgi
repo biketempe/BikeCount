@@ -317,9 +317,10 @@ sub update_volunteer_data {
             $volunteer->intersections = $intersections;
             $error = '<br><br>Count shift recorded -- thanks!';
 
+            my $name = ( $signup_data->{first_name} && $signup_data->{last_name} ) ? "$signup_data->{first_name} $signup_data->{last_name} ($signup_data->{email_address})" : $signup_data->{email};
+
             eval {
                 # send an email to ourselves
-                my $name = ( $signup_data->{first_name} && $signup_data->{last_name} ) ? "$signup_data->{first_name} $signup_data->{last_name} ($signup_data->{email_address})" : $signup_data->{email};
                 my $body = <<EOF;
 Hi there,
 
@@ -334,6 +335,31 @@ EOF
                     -subject => "$name signed up for shift $assignment",
                     -body => $body,
                 ); # or die; # always dies
+            };
+
+            eval {
+                # send an email to them
+                my $body = <<EOF;
+Hi @{[ $signup_data->{first_name} || $name ]},
+
+Thank you for being a bike count volunteer!  It's people like you that make stuff happen.
+
+Please take a moment to double check your information.  Let bikecount\@biketempe.org know
+if any corrections are needed.
+
+Assignment:  $assignment
+Phone number: $signup_data->{phone_number}
+Comments: $signup_data->{comments}
+Training session:  $signup_data->{training_session}
+Training session other field: $signup_data->{training_session_comment}
+
+EOF
+                my $mail = Email::Send::SMTP::Gmail->new( %email_config ) or die;
+                $mail->send(
+                    -to =>  $signup_data->{email_address},
+                    -subject => "Thank you for signing up for the $assignment bike count shift!",
+                    -body => $body,
+                );
             };
 
         }
