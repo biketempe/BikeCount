@@ -39,7 +39,9 @@ use geo;
 my %email_config = (
     -smtp=>   'smtp.gmail.com',
     -login=>  'bikecount@biketempe.org',
-    -pass=>   `/home/scott/bin/bikecountgmail`    # this is a small small executable that just outputs the password; you could also hard-code the password here
+    -pass => `/home/biketempe/bin/bikecountgmail`,
+    'port' =>  25,   # ports 485 (SMTP+SSL) and 587 (SMTP+TSL) are blocked, but 25 is apparently open
+    -layer => 'ssl',
 );
 
 $SIG{USR1} = sub { Carp::confess $@; };
@@ -77,7 +79,7 @@ for my $column (qw/first_name last_name phone_number email_address training_sess
 # don't flock
 open my $count_sites_fh, '+<', 'count_sites.csv' or die $!;
 seek $count_sites_fh, 0, 0;
-my $count_sites = csv->new($count_sites_fh, 1);
+my $count_sites = csv->new($count_sites_fh, 0);
 
 geo::geocode( $count_sites );
 
@@ -320,7 +322,7 @@ sub update_volunteer_data {
             $volunteer->intersections = $intersections;
             $error = '<br><br>Count shift recorded -- thanks!';
 
-            my $name = ( $signup_data->{first_name} && $signup_data->{last_name} ) ? "$signup_data->{first_name} $signup_data->{last_name} ($signup_data->{email_address})" : $signup_data->{email};
+            my $name = "$signup_data->{first_name} $signup_data->{last_name} ($signup_data->{email_address})";
 
             eval {
                 # send an email to ourselves
