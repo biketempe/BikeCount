@@ -4,7 +4,6 @@ package geo;
 use strict;
 use warnings;
 
-use Geo::Coder::RandMcnally; # overlaps most of the intersections; sucks
 use Geo::Coder::Geocoder::US;  # seems to do a pretty good job but can't handle the canals and some other things; most stuff was geocoded with this one
 use Geo::Coder::Google; # can't do intersections with a freeway to save its life and doesn't know when it has failed; fucks up a lot of small streets too; actually may be failing on everything
 use Geo::Coder::TomTom; 
