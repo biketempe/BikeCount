@@ -257,7 +257,7 @@ do {
             @updated_assignments = ( @assignments, $new_assignment );
         }
 
-        if( $action2 ) {
+        if( grep $action2 eq $_, 'delete_assignment', 'add_assignment' ) {
             $volunteer->intersections = join ',', @updated_assignments;
             $volunteers->write;
             $volunteers->reload;
@@ -265,15 +265,34 @@ do {
             @assignments = @updated_assignments;
         }
 
+        if( $action2 eq 'save_person' ) {
+            for my $field ( split m/,/, "first_name,last_name,phone_number,email_address,training_session,training_session_comment,intersections,was_mailed_assignment,comments" ) {
+                $volunteer->$field = CGI::param("edit_$field") if CGI::param("edit_$field");
+            }
+            $volunteers->write;
+        }
+
         skip_the_subaction:
 
         my @pending_shifts = get_pending_shifts();  # we do this after we possibily delete an assignment
         print( qq{<form method="post"><input type="hidden" name="action2" value="add_assignment"><select name="new_assignment">} . join('', map qq{<option value="$_">$_</option>}, @pending_shifts) . qq{</select><select name="day"><option>Tue</option><option>Wed</option><option>Thu</Option></select><input type="submit" value="Add"></form><br>\n} );
 
+        
+        print qq{<form method="post">\n};  # for either the 'Edit User' button or 'Save User' button if we're already in edit
         for my $field ( split m/,/, "first_name,last_name,phone_number,email_address,training_session,training_session_comment,intersections,was_mailed_assignment,comments" ) {
-            print( "$field: ", $volunteer->$field, "<br>\n" );
+            if( $action2 eq 'edit_person' ) {
+                print qq{<input type="text" name="edit_$field" value="@{[ $volunteer->$field ]}"> $field<br>\n};
+            } else {
+                print( "$field: ", $volunteer->$field, "<br>\n" );
+            }
         }
         print("<br>\n");
+        if( $action2 eq 'edit_person' ) {
+            print qq{<input type="hidden" name="person" value="$email"><input type="hidden" name="action2" value="save_person"><input type="submit" value="Save User">\n};
+        } else {
+            print qq{<input type="hidden" name="person" value="$email"><input type="hidden" name="action2" value="edit_person"><input type="submit" value="Edit User">\n};
+        }
+        print "</form>\n";
 
         for my $assignment ( @assignments ) {
             # my( $location_id, $ampm, $day, $location_N_S, $location_W_E ) = @$assignment;
