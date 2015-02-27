@@ -18,7 +18,6 @@ use Email::Send::SMTP::Gmail;
 my @email_config = (
     -smtp=>   'smtp.gmail.com',
     -login=>  'bikecount@biketempe.org',
-    # -pass=>   `/home/biketempe/bin/bikecountgmail`    # this is a small small executable that just outputs the password; you could also hard-code the password here
     -pass => `/home/biketempe/bin/bikecountgmail`,
     'port' =>  25,   # ports 485 (SMTP+SSL) and 587 (SMTP+TSL) are blocked, but 25 is apparently open
     -layer => 'ssl',
@@ -139,6 +138,14 @@ do {
 
     if( $given_password and $given_password eq $password ) {
 
+        if( CGI::param('action') eq 'download_volunteers' ) {
+            print "Content-type: text/csv\r\n";
+            print "Content-Disposition: attachment; filename=volunteers.csv\r\n";
+            print "\r\n";
+            system '/bin/cat', 'volunteers.csv';
+            exit;
+        }
+
         print "Content-type: text/html\r\n\r\n";
         # fall-through
 
@@ -177,6 +184,7 @@ do {
         <a href="?action=by_last_name">People By Last Name</a><br>
         <a href="?action=unassigned_locations">Unassigned Locations</a><br>
         <a href="?action=by_priority">Locations By Priority</a><br>
+        <a href="?action=download_volunteers">Download volunteers.csv</a><br>
         <hr>
     } );
 
