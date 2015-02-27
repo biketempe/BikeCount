@@ -359,15 +359,12 @@ do {
 
         if( $action2 eq 'send') {
 
-print "doing send<br>\n";
-
              my $wording = CGI::param('wording');
 
              my $mail = Email::Send::SMTP::Gmail->new( @email_config ) or die;
 
              for my $volunteer ( $volunteers->rows ) {
 
-print $volunteer->email_address, "<br>\n"; # XXX
 # unless( lc($volunteer->email_address) eq 'scott@slowass.net' or lc($volunteer->email_address) eq 'jenn@biketempe.org' ) { print("skipping " . $volunteer->email_address ."<br>\n"); next; }; # 
 
                  next if $volunteer->was_mailed_assignment;
