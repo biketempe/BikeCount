@@ -1,3 +1,4 @@
+#!/home/biketempe/bin/perl
 #!/usr/local/bin/perl
 
 # XXX filter HTML from emails to the bikecount mail box?
@@ -13,6 +14,8 @@
 
 use strict;
 
+use lib '/home/biketempe/perl5/lib/perl5/';
+
 use CGI;
 use CGI::Carp 'fatalsToBrowser';
 use Data::Dumper;
@@ -23,7 +26,7 @@ use Cwd;
 use JSON::PP;
 # use Geo::Coder::RandMcnally; # overlaps most of the intersections
 # use Geo::Coder::Geocoder::US;
-use Geo::Coder::TomTom;
+use Geo::Coder::TomTom; # best so far
 use XXX;
 use Carp;
 use HTML::Scrubber;
@@ -36,7 +39,9 @@ use geo;
 my %email_config = (
     -smtp=>   'smtp.gmail.com',
     -login=>  'bikecount@biketempe.org',
-    -pass=>   `/home/scott/bin/bikecountgmail`    # this is a small small executable that just outputs the password; you could also hard-code the password here
+    -pass => `/home/biketempe/bin/bikecountgmail`,
+    'port' =>  25,   # ports 485 (SMTP+SSL) and 587 (SMTP+TSL) are blocked, but 25 is apparently open
+    -layer => 'ssl',
 );
 
 $SIG{USR1} = sub { Carp::confess $@; };
@@ -74,7 +79,7 @@ for my $column (qw/first_name last_name phone_number email_address training_sess
 # don't flock
 open my $count_sites_fh, '+<', 'count_sites.csv' or die $!;
 seek $count_sites_fh, 0, 0;
-my $count_sites = csv->new($count_sites_fh, 1);
+my $count_sites = csv->new($count_sites_fh, 0);
 
 geo::geocode( $count_sites );
 
