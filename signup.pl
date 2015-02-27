@@ -6,6 +6,8 @@
 # XXX send email to the person who volunteers when they sign up for an intersection
 # XXX post back the email address field every AJAX hit
 # XXX fix file locking
+# XXX unit tests!
+# XXX validation on submit to make sure intersections aren't overbooked and people don't double book themselves
 
 # these require two (when they are done):
 #111,"10th St","Mill Ave",11,0,33.418945,-111.939799,0,Geo::Coder::Geocoder::US,"ASU cordon",
@@ -348,7 +350,7 @@ EOF
 
 my $server = Continuity->new(
     # adapter => Continuity::Adapt::PSGI->new( docroot => Cwd::getcwd() ),
-    port => 5000,
+    port => 7000,
     # path_session => 1,
     # debug => 3,
     # mapper   => Continuity::Mapper->new(
@@ -408,6 +410,8 @@ warn "email = " . $signup_data->{email_address};
             if( ! @open_shifts ) {
                 $req->print(qq{Either your AM or PM is full and your schedule cannot accommodate these shifts: @$sites.<br>\n});
             }
+
+            $log->print("open shifts for this user: @open_shifts\n");
 
         } elsif( $action eq 'get_assignments' ) {
 
