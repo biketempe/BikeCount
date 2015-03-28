@@ -198,7 +198,7 @@ do {
             next unless $count_site->vols_needed;
             for my $ampm ('A', 'P') {
                 my $location_id = $count_site->location_id . $ampm;
-                print( map "$_\n", $location_id . ': ' . join ', ', map qq{<a href="?person=$_->[1]">$_->[0]</a>}, @{ $people_by_location{ $location_id } } );
+                print( map "$_\n", $location_id . ': ' . join ', ', map qq{<a href="?person=} . CGI::escape($_->[1]) . qq{">$_->[0]</a>}, @{ $people_by_location{ $location_id } } );
                 print("<br>\n");
             }
         }
@@ -228,15 +228,14 @@ do {
         for my $volunteer ( sort { $a->last_name cmp $b->last_name } $volunteers->rows ) {
             my $name = join ' ', map $volunteer->{$_}, qw/first_name last_name/;
             my $email = $volunteer->email_address;
-            print( qq{<a href="?person=$email">$name $email</a><br>\n} );
-                print( qq{<a href="?person=$email">$name &lt;$email&gt;</a><br>\n} );
+            print( qq{<a href="?person=$email">$name &lt;$email&gt;</a><br>\n} );
         }
 
     } elsif ( $action eq 'person' ) {
 
         my $email = CGI::param('person');
         my $action2 = CGI::param('action2') || '';
-        my $volunteer = $volunteers->find('email_address', $email, sub { lc $_[0] } ) or do { print "utterly failed"; next; }; # for updating
+        my $volunteer = $volunteers->find('email_address', $email, sub { lc $_[0] } ) or do { print "utterly failed to find someone with that email address"; exit; }; # for updating
 
         my @assignments = assignments_per_user( $email );
         my @updated_assignments;
@@ -275,7 +274,7 @@ do {
         skip_the_subaction:
 
         my @pending_shifts = get_pending_shifts();  # we do this after we possibily delete an assignment
-        print( qq{<form method="post"><input type="hidden" name="action2" value="add_assignment"><select name="new_assignment">} . join('', map qq{<option value="$_">$_</option>}, @pending_shifts) . qq{</select><select name="day"><option>Tue</option><option>Wed</option><option>Thu</Option></select><input type="submit" value="Add"></form><br>\n} );
+        print( qq{<form method="post"><input type="hidden" name="person" value="$email"><input type="hidden" name="action2" value="add_assignment"><select name="new_assignment">} . join('', map qq{<option value="$_">$_</option>}, @pending_shifts) . qq{</select><select name="day"><option>Tue</option><option>Wed</option><option>Thu</Option></select><input type="submit" value="Add"></form><br>\n} );
 
         
         print qq{<form method="post">\n};  # for either the 'Edit User' button or 'Save User' button if we're already in edit
@@ -296,7 +295,7 @@ do {
 
         for my $assignment ( @assignments ) {
             # my( $location_id, $ampm, $day, $location_N_S, $location_W_E ) = @$assignment;
-            print(qq{<nobr>$assignment&nbsp;<form method="post"><input type="hidden" name="action2" value="delete_assignment"><input type="hidden" name="person" value="$email"><input type="hidden" name="assignment" value="$assignment"><input type="submit" value="delete"></form></nobr><br>\n});
+            print(qq{<nobr>$assignment&nbsp;<form method="post"><input type="hidden" name="person" value="$email"><input type="hidden" name="action2" value="delete_assignment"><input type="hidden" name="person" value="$email"><input type="hidden" name="assignment" value="$assignment"><input type="submit" value="Delete"></form></nobr><br>\n});
         }
 
 
