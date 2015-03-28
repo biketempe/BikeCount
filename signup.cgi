@@ -322,10 +322,9 @@ sub update_volunteer_data {
             $volunteer->intersections = $intersections;
             $error = '<br><br>Count shift recorded -- thanks!';
 
-            my $name = "$signup_data->{first_name} $signup_data->{last_name} ($signup_data->{email_address})";
-
             eval {
                 # send an email to ourselves
+                my $name = "$signup_data->{first_name} $signup_data->{last_name} $signup_data->{email_address}";
                 my $body = <<EOF;
 Hi there,
 
@@ -337,13 +336,15 @@ EOF
                 my $mail = Email::Send::SMTP::Gmail->new( %email_config ) or die;
                 $mail->send(
                     -to => $email_config{'-login'},  # to ourselves
-                    -subject => "$name signed up for shift $assignment",
+                    -subject => "$name signed up for shift $assignment" . ( $signup_data->{comments} ? ' [with comments]' : ''),
                     -body => $body,
                 ); # or die; # always dies
             };
 
             eval {
                 # send an email to them
+                my $name = "$signup_data->{first_name} $signup_data->{last_name} ($signup_data->{email_address})";
+
                 my $body = <<EOF;
 Hi @{[ $signup_data->{first_name} || $name ]},
 
@@ -357,6 +358,9 @@ Phone number: $signup_data->{phone_number}
 Comments: $signup_data->{comments}
 Training session:  $signup_data->{training_session}
 Training session other field: $signup_data->{training_session_comment}
+
+Thank you,
+The Bike Count Team
 
 EOF
                 my $mail = Email::Send::SMTP::Gmail->new( %email_config ) or die;
