@@ -44,6 +44,8 @@ for my $i ( 0 .. $#$header_row ) {
     }
 }
 
+$header_row->[0] eq 'HITId' or die;  # sanity
+
 # HTML entry form
 
 open $fh, '<', 'Sheet1_tidy_amazon.html' or die $!;
@@ -63,7 +65,10 @@ sub main {
         # handle submitted data
 
         if( $request->param('submit') ) {
-            update_row( $request, $rows[ $row_num ] );
+            my $hit_id = $request->param('HITId') or die "not HITId posted in update";
+            (my $row) = grep $_->[0] eq $hit_id, @rows or die "HITId requested $hit_id not found";
+            for $row_num ( 0 .. $#rows ) { last if $rows[$row_num]->[0] eq $hit_id; }  # update $row_num to match the page just submitted
+            update_row( $request, $row );
         }
 
         my $new_row_num = $request->param('row_num');
@@ -101,19 +106,21 @@ sub update_row {
     # write all of the rows back out again
     # if we see the row that's supposed to be modified, modify it first
 
-    $header_row->[0] eq 'HITId' or die;
-    my $requested_hitid = $request->param('HITId') or die "not HITId posted in update";
-
     for my $row (@rows) {
 
         if( $row->[0] eq $row_to_modify->[0] ) {
-            $row->[0] eq $requested_hitid or die "HITId requested $requested_hitid vs actual $row->[0]"; # sanity check; we should be comparing the HITIds to make sure we're editing the exact right one
             my %params = $request->param;
+            my @params = keys %params;
+            if( grep $_ eq 'location_id', @params ) {
+                # if they're posting location_id (not essential but helpful), make it first, so that diagnostic output is more coherent
+                @params = ('location_id', grep $_ ne 'location_id', @params);
+            };
             for my $k (keys %params) {
                 next if $k eq 'submit';
                 next if $k eq 'row_num';
                 next unless defined $k and length $k;  # not sure why we're getting a null key
-                exists $header{ $k } or die "no entry for field ``$k'' in " . Data::Dumper::Dumper \%header;
+                next if $k eq '/'; # not sure why that's happening; browser isn't posting it
+                exists $header{ $k } or do { warn "no entry for field ``$k'' in " . Data::Dumper::Dumper \%header; next; };
                 warn "$row->[ $header{ 'Answer.location_id' } ]: value for ``$k'' (column $header{$k}) changed: was: ``$row->[ $header{ $k } ]'' now: ``$params{$k}''\n" if $row->[ $header{ $k } ] ne $params{$k};
                 $row->[ $header{ $k } ] = $params{$k};
             }
@@ -161,8 +168,11 @@ sub show_row {
 
     my $extended_html = qq{
         <form method="post">
+<!--
+    ... starting with entry here rather than from Amazon, so there is no approve/reject process
         Approve:  Place an "x" here if the data entry work needed few or no corrections:  <input type="text" name="Approve" size="1" maxlength="1"/><br>
         Reject: Describe the problems with the data entry work here if it needed more than a couple of corrections: <input type="text" name="Reject" size="80"/><br>
+  -->
         <input type="submit" name="submit" value="Save Changes"/>
         <input type="hidden" name="HITId" value="$row->[0]"/>
     } . $html . qq{
