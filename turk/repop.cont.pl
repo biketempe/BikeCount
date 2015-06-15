@@ -1,170 +1,123 @@
+#!/home/biketempe/bin/perl
 #!/usr/bin/perl
 
-# ssh -v -N -R *:1234:127.0.0.1:1234 -l scott slowass.net    # <-- set up a proxy from slowass.net:1234 to the local machine
+BEGIN {
+    print "Content-type: text/html\r\n\r\n";
+    close STDERR;
+    open STDERR, '>>', 'repop.log' or die $!;
+};
 
 use strict;
 use warnings;
 
-use Continuity;
+use lib '/home/biketempe/perl5/lib/perl5/'; # I have no idea... cpanm is putting things there on the dreamhost machine
+
+use CGI;
+use CGI::Carp 'fatalsToBrowser';
 
 use Text::CSV;
 # use lib '/home/scott/projects/perl';
 use Data::Dumper;
-use lib '.';
+use lib '.', '..';
 use repop 'repop';
+use csv;
 
-my $csv_fn = shift() or die "pass csv fn";
-my $desired_row_num = shift;
+# config
 
-# data entered CSV
+my $csv_fn = '2015_Batch.csv';
 
-my $csv = Text::CSV->new ( { binary => 1 } )  # should set binary attribute.
-                or die "Cannot use CSV: ".Text::CSV->error_diag ();
+#
 
-my @rows;
-open my $fh, "<:encoding(utf8)", $csv_fn or die "$csv_fn: $!";
-my $header_row = $csv->getline( $fh );
-my $row;
-while ( $row = $csv->getline( $fh ) ) {
-    push @rows, $row;
-}
-$csv->eof or $csv->error_diag();
-close $fh;
+my $count_data = csv->new($csv_fn);
 
 # header column names to numbers
 
+my $header_row = $count_data->{header} or die;
+
 my %header;
 for my $i ( 0 .. $#$header_row ) {
-    my $name = $header_row->[$i];
-    $header{ $name } = $i;
-    if( $name =~ m{^\w+\.} ) {
-        # alias without the 'Input.' or 'Answer.' prefix
-        $name=~ s{^\w+\.}{};
-        $header{ $name } = $i;
-    }
+    $header{ $header_row->[$i] } = '0e0';  # for a quick existance check
 }
 
 $header_row->[0] eq 'HITId' or die;  # sanity
 
 # HTML entry form
 
-open $fh, '<', 'Sheet1_tidy_amazon.html' or die $!;
+open my $fh, '<', 'Sheet1_tidy_amazon.html' or die $!;
 read $fh, my $html_entry_sheet, -s $fh;
 close $fh;
     
-# Continuity
+my $request = CGI->new;
 
-my $server = Continuity->new( port => 1234, );
+# handle submitted data
 
-sub main {
-    my $request = shift;
-    my $row_num = 0;
-
-    while(1) {
-
-        # handle submitted data
-
-        if( $request->param('submit') ) {
-            my $hit_id = $request->param('HITId') or die "not HITId posted in update";
-            (my $row) = grep $_->[0] eq $hit_id, @rows or die "HITId requested $hit_id not found";
-            for $row_num ( 0 .. $#rows ) { last if $rows[$row_num]->[0] eq $hit_id; }  # update $row_num to match the page just submitted
-            update_row( $request, $row );
-        }
-
-        my $new_row_num = $request->param('row_num');
-        $row_num = $new_row_num if defined $new_row_num;
-
-        # redraw the screen
-
-        my $row_num_minus_1 = $row_num - 1;
-        my $row_num_plus_1 = $row_num + 1;
-        $request->print( scalar(@rows) . " pages.<br>\n" );
-        $request->print(qq{ <a href="?row_num=$row_num_minus_1">&lt;&lt; Page $row_num_minus_1</a> }) if $row_num > 0;
-        $request->print("Page $row_num");
-        $request->print(qq{ <a href="?row_num=$row_num_plus_1">Page $row_num_plus_1 &gt;&gt;</a> }) if $row_num < $#rows;
-        $request->print(qq{ <nobr><form method="get">Jump to page <input name="row_num" type="text" size="3"/><input type="submit" value="Go"></form></nobr> });
-        show_row( $request, $rows[ $row_num ] );
-
-        # wait for the next request
-
-        $request->next;
-
-    }
+if( $request->param('submit') ) {
+    # hopefully row_num and HITId
+    my $hit_id = $request->param('HITId') or die "not HITId posted in update";
+    (my $row) = $count_data->find(HITId => $hit_id) or die "row not found";
+    update_row( $request, $row );
 }
+
+# redraw the screen
+
+my $row_num = $request->param('row_num');
+$row_num = 0 if ! defined $row_num;  # hopefully only happens on view, not submit
+
+my $row_num_minus_1 = $row_num - 1;
+my $row_num_plus_1 = $row_num + 1;
+print( scalar( @{ $count_data->rows } ) . " pages.<br>\n" );
+print(qq{ <a href="?row_num=$row_num_minus_1">&lt;&lt; Page $row_num_minus_1</a> }) if $row_num > 0;
+print("Page $row_num");
+print(qq{ <a href="?row_num=$row_num_plus_1">Page $row_num_plus_1 &gt;&gt;</a> }) if $row_num < @{ $count_data->rows };
+print(qq{ <nobr><form method="get">Jump to page <input name="row_num" type="text" size="3"/><input type="submit" value="Go"></form></nobr> });
+
+show_row( $request, $count_data->rows->[ $row_num ], $row_num );
+
+#
+# subroutines 
+#
 
 sub update_row {
 
     my $request = shift;
     my $row_to_modify = shift;
  
-    open my $fh, ">:encoding(utf8)", "$csv_fn.new" or die "$csv_fn.new: $!";
+    my @params = $request->param;
 
-    my $csv = Text::CSV->new( { binary => 1, always_quote => 1, eol => "\015\012"  } ) or die "Cannot use CSV: ".Text::CSV->error_diag(); # without the eol bit, it won't write line endings at all with $csv->print()
+    if( grep $_ eq 'location_id', @params ) {
+        # if they're posting location_id (not essential but helpful), make it first, so that diagnostic output is more coherent
+        @params = ('location_id', grep $_ ne 'location_id', @params);
+    };
 
-    $csv->print( $fh, $header_row ) or die Text::CSV->error_diag();
-
-    # write all of the rows back out again
-    # if we see the row that's supposed to be modified, modify it first
-
-    for my $row (@rows) {
-
-        if( $row->[0] eq $row_to_modify->[0] ) {
-            my %params = $request->param;
-            my @params = keys %params;
-            if( grep $_ eq 'location_id', @params ) {
-                # if they're posting location_id (not essential but helpful), make it first, so that diagnostic output is more coherent
-                @params = ('location_id', grep $_ ne 'location_id', @params);
-            };
-            for my $k (keys %params) {
-                next if $k eq 'submit';
-                next if $k eq 'row_num';
-                next unless defined $k and length $k;  # not sure why we're getting a null key
-                next if $k eq '/'; # not sure why that's happening; browser isn't posting it
-                exists $header{ $k } or do { warn "no entry for field ``$k'' in " . Data::Dumper::Dumper \%header; next; };
-                warn "$row->[ $header{ 'Answer.location_id' } ]: value for ``$k'' (column $header{$k}) changed: was: ``$row->[ $header{ $k } ]'' now: ``$params{$k}''\n" if $row->[ $header{ $k } ] ne $params{$k};
-                $row->[ $header{ $k } ] = $params{$k};
-            }
+    for my $k (@params) {
+        next if $k eq 'submit';
+        next if $k eq 'row_num';
+        next unless defined $k and length $k;  # not sure why we're getting a null key
+        next if $k eq '/'; # not sure why that's happening; browser isn't posting it; but that was almost certainly a Continuity thing
+        exists $header{ $k } or do { warn "no entry for field ``$k'' in " . Data::Dumper::Dumper \%header; next; };
+        if($row_to_modify->{$k} ne $request->param($k)) {
+            warn $row_to_modify->location_id . ": value for ``$k'' changed: was: ``@{[ $row_to_modify->{$k} ]}'' now: ``@{[ $request->param($k) ]}''\n";
+            $row_to_modify->{$k} = $request->param($k);
         }
-
-        $csv->print( $fh, $row ) or die Text::CSV->error_diag();
     }
 
-    close $fh or die "$csv_fn.new: $!";
-    rename "$csv_fn.new", $csv_fn or die "rename to $csv_fn: $!";
-    
+    $count_data->write;
+
 }
 
 sub show_row {
 
     my $request = shift;
     my $row = shift;
+    my $row_num = shift;
 
-    $request->print("<pre>HITId: $row->[0]</pre><br>\n");
+    print("<pre>HITId: $row->{HITId}</pre><br>\n");
 
     my $html = $html_entry_sheet;
 
-    my %values;
-    my %inputs;
-    for my $i ( 0 .. $#$header_row ) {
+    # fix things in the file that aren't input tag values, like this:  <p><img width="800" height="600" src="${image_url}" alt="" /></p>
 
-        if( $header_row->[$i] =~ m/^Input\./ ) {
-            my $input_name = $header_row->[$i];
-            $input_name =~ s{^Input\.}{};
-            $request->print(qq{<pre>$input_name: $row->[$i]</pre><br>\n});
-            # fix things like this in the file:  <p><img width="800" height="600" src="${image_url}" alt="" /></p>
-            $html =~ s!\$\{$input_name\}!$row->[$i]!g;
-        }
-
-        if( $header_row->[$i] =~ m/^Answer\./ ) {
-            my $answer_name = $header_row->[$i];
-            $answer_name =~ s{^Answer\.}{};
-            $values{ $answer_name } = $row->[$i];
-        }
-
-        if( grep $header_row->[$i] eq $_, 'Approve', 'Reject' ) {
-            $values{ $header_row->[$i] } = $row->[$i];
-        }
-    }
+    $html =~ s!\$\{(\w+)\}! $row->{$1} !ges;
 
     my $extended_html = qq{
         <form method="post">
@@ -174,16 +127,14 @@ sub show_row {
         Reject: Describe the problems with the data entry work here if it needed more than a couple of corrections: <input type="text" name="Reject" size="80"/><br>
   -->
         <input type="submit" name="submit" value="Save Changes"/>
-        <input type="hidden" name="HITId" value="$row->[0]"/>
+        <input type="hidden" name="HITId" value="$row->{HITId}"/>
+        <input type="hidden" name="row_num" value="$row_num"/>
     } . $html . qq{
         </form>
     };
 
-    $request->print( repop( $extended_html, \%values ) );
-
+    print( repop( $extended_html, $row ) );  # slightly abusive; $row is a blessed hashref of key/value pairs; just using it as a hashref
     
 }
     
-
-$server->loop;
 
