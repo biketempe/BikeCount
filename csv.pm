@@ -1,5 +1,15 @@
 package csv;
 
+=for comment
+
+OO-ish interface to CSV files and records in them.  Wrapper around Text::CSV.
+
+See csv.t for example usage.
+
+This reads csv files, updates them in memory, and writes them out again, with locking against concurrent access.
+
+=cut
+
 use strict;
 use warnings;
 
@@ -12,9 +22,9 @@ use Data::Dumper;
 
 sub new {
     my $package = shift;
-    my $fn = shift or die;
-    my $header_row_num = shift || 0;
-    my $record_class = shift || 'csv::rec';
+    my $fn = shift or die;                         # csv file to read/update, or already opened filehandle (doesn't do locking on filehandles; this is a feature)
+    my $header_row_num = shift || 0;               # optional; how many lines of appear before the header row; these are ignored on read but preserved when writing
+    my $record_class = shift || 'csv::rec';        # optional; class to use to represent each row of data
 
     my $csv = Text::CSV->new({ binary => 1 }) or die Text::CSV->error_diag;
 
@@ -30,13 +40,19 @@ sub new {
 
     my $mod_time = -M $fn;
 
+    # data to ignore/preserve that appears before the header with column names
+
     my @preheader_data;
     die if $header_row_num < 0;
     my $header_row_num_cp = $header_row_num;
     push @preheader_data, $csv->getline( $fh ) || die "unexpected end of csv data while reading pre-headed data in $fn" while $header_row_num_cp--;  # header is probably row 0 or row 1
 
+    # header line, that has the names of the columns
+
     my $header = $csv->getline( $fh ) or die "unexpected end of cvs data:  no header at all, reading $fn";
     for my $i ( 0 .. $#$header ) { $header->[$i] ||=  "column_number_$i" }
+
+    # rows of data, stored as instances of csv::rec or whatever class was specified
 
     my @rows;
 
@@ -46,12 +62,13 @@ sub new {
        push @rows, bless { zip @$header, @$line }, $record_class;
     }
 
+    # create an object
+
     bless { 
         rows => \@rows, 
         preheader_data => \@preheader_data, 
         header => $header, 
         header_row_num => $header_row_num, 
-        # in_filename => $fn, 
         mod_time => $mod_time,
         record_class => $record_class,
         fh => $fh,
@@ -104,10 +121,13 @@ sub write {
 }
 
 sub find {
+
+    # local a record in the set and return it (specifically, return the first match)
+
     my $self = shift;
-    my $field_name = shift;
-    my $field_value = shift;
-    my $transform = shift() || sub { $_[0] };
+    my $field_name = shift;                      # which field to look in (column name from the headers)
+    my $field_value = shift;                     # value to look for in that field
+    my $transform = shift() || sub { $_[0] };    # transformation to run on each value; for example, could fold to upper case in order to ignore case when searching
     return unless @{ $self->{rows} };
     exists $self->{rows}->[0]->{$field_name} or die "field name ``$field_name'' provided to find not found: " . Data::Dumper::Dumper $self->{rows}->[0];
     my @res = grep { defined $_->{$field_name} and $transform->( $_->{$field_name} ) eq $transform->( $field_value ) } @{ $self->{rows} };
@@ -116,6 +136,10 @@ sub find {
 }
 
 sub add {
+
+    # add a new, blank record to the working set; returns the new, blank record; doesn't get written until write() is called
+    # the record created by add() and returned should be filled with data, and then write() called
+
     my $self = shift;
     my $header = $self->{header};
     my $rows = $self->{rows};
@@ -126,17 +150,20 @@ sub add {
 }
 
 sub rows {
+    # returns all of the row record objects, either as a list or reference depending on context
     my $self = shift;
     my $rows = $self->{rows};
     return wantarray ? @$rows : $rows;
 }
 
 sub headers {
+    # returns the names of the column headers, either as a list or reference depending on context
     my $self = shift;
     return wantarray ? @{ $self->{header} } : $self->{header};
 }
 
 sub add_column {
+    # adds a new column to the in memory copy of the csv file; use write() to store it back to disk
     my $self = shift;
     my $column_name = shift or die;
     die "column already exists" if grep $_ eq $column_name, @{ $self->{header} };
@@ -146,6 +173,13 @@ sub add_column {
     }
     1;
 }
+
+# csv::rec
+
+# represents an individual record (aka row).
+# this has no methods except for the default method handler, which accesses a field of the same name as the method invoked.
+# this is "lvalue", meaning that it can be used on the left hand side of an expression.  ie, you can assign to it:  $rec->FooColumn = 10.
+# no attempt is made to verify that a given column actually exists; this is not a feature.  it would be better if add_column() iterated through all of the row objects and created a stub for the new column, just mapping that name to undef in each.  then this could do exists $self->{$method} or die.  that would catch typos in record accessors.
 
 package csv::rec;
 
