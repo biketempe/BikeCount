@@ -2,6 +2,16 @@
 
 package repop;
 
+=for comment
+
+Repopulate an HTML form.
+
+Parse HTML (badly), pick out form elements, and sets the text/selected value/etc to the specified value.
+
+repop() takes the HTML form and a hash of key-value pairs, where the keys are form input names and the values are the values to selected or fill in.
+
+=cut
+
 use strict;
 use warnings;
 no warnings 'uninitialized';
@@ -117,19 +127,6 @@ $debug and print "debug: got a tag ``$keyvals{tag}'' of name ``$keyvals{name}'' 
     });
 
 }
-
-# sub padwalk {
-#     # look up $name in the pads up to and before this
-#     my $name = shift;
-#     my $pad;
-#     my $depth = 2;
-#     while($pad = PadWalker::peek_my($depth)) {
-#         exists $pad->{'$'.$name} and last;
-#     } continue {
-#         $depth++;
-#     }
-#     $pad ?  ${ $pad->{'$'.$name} } : ();
-# }
 
 sub parse_html {
     my $file = shift;
@@ -287,5 +284,4 @@ sub cc {
 __DATA__
 
 perl -e 'use repop; my $foo = "bar"; my $baz = "quux"; print repop::repop(qq{<input type="text" name="foo">});'
-perl -e 'use repop "padwalk"; sub foo { print padwalk "bar" }; sub baz { my $bar = 30; foo(); } baz;'
 
