@@ -5,24 +5,36 @@
 
 # the output of this can be imported into the Mailchimp list of count Alumni at https://us4.admin.mailchimp.com/lists/members/?id=181049
 
+# reads last year's volunteers.csv (before deleting all responses and starting over for a year) and the count data from that year,
+# finding the names and email addresses of volunteers (from volunteers.csv) who have usable data (in the count data).
+
 use strict;
 use warnings;
 
+use lib '/home/biketempe/perl5/lib/perl5/';
+
 use csv;
+
+use Getopt::Long;
 use Data::Dumper;
 use String::Approx;
-
 use Data::Dumper;
 use IO::Handle;
 use Carp;  
 
 use csv;
 
-my $previous = csv->new('2014_post_turk_post_volunteer_entry_checking_post_scotts_sanity_checks_post_cliff_conversion.csv', 0);  # this is the output of the Mechanical Turk process
-# my $previous = csv->new('count_data_2013_post_cliff_fixes_extra_data_prune.csv', 0);
-# my $previous = csv->new('2011_2012_combined.csv', 0);
+GetOptions(
+    "count-data=s" => \my $count_data_file,    # eg, '2014_post_turk_post_volunteer_entry_checking_post_scotts_sanity_checks_post_cliff_conversion.csv'
+    "volunteers=s" => \my $volunteers_file,
+);
 
-my $volunteers = csv->new('volunteers-last-cp.csv', 0);
+$count_data_file or die "--count-data <file> is required";
+$volunteers_file ||= 'volunteers.csv';
+
+my $previous = csv->new($count_data_file, 0);  # this is the output of the Mechanical Turk process
+
+my $volunteers = csv->new('volunteers.csv', 0);
 
 my %prev_volunteer_names = map { ( $_->Recorder => 1 ) } $previous->rows;
 
