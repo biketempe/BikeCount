@@ -4,9 +4,11 @@ package geo;
 use strict;
 use warnings;
 
-use Geo::Coder::Geocoder::US;  # seems to do a pretty good job but can't handle the canals and some other things; most stuff was geocoded with this one
-use Geo::Coder::Google; # can't do intersections with a freeway to save its life and doesn't know when it has failed; fucks up a lot of small streets too; actually may be failing on everything
-use Geo::Coder::TomTom; 
+use Data::Dumper;
+
+use Geo::Coder::Geocoder::US;  # seems to do a pretty good job but can't handle the canals and some other things; most stuff was geocoded with this one; okay, now it isn't working at all; returns undef
+use Geo::Coder::Google; # can't do intersections with a freeway to save its life and doesn't know when it has failed; fucks up a lot of small streets too; actually may be failing on everything; okay, did some intersections with it and they spot check good
+# use Geo::Coder::TomTom;    # was doing a pretty good job but now requires a license key; either paid, or you have to agree to "product evaluation only"
 
 sub geocode {
 
@@ -44,17 +46,20 @@ sub geocode {
         next unless $row->location_N_S or $row->location_W_E;
         warn "``" . $row->location_N_S . "'' ``" . $row->location_W_E . "''";
         # my $location_desc = $row->location_N_S . ' & ' . $row->location_W_E . ', Tempe, AZ';
-        my $location_desc = ( $row->location_N_S and $row->location_W_E ) ? $row->location_N_S . ' & ' . $row->location_W_E : $row->location_N_S . $row->location_W_E;
+        my $location_desc = ( $row->location_N_S and $row->location_W_E ) ? $row->location_N_S . ' and ' . $row->location_W_E : $row->location_N_S . $row->location_W_E;
         $location_desc .= ', Tempe, AZ'; # XXX hard-code
+        warn $location_desc;
 
         # my $geocoder = Geo::Coder::RandMcnally->new;
         # my $geocoder = Geo::Coder::Geocoder::US->new;
-        # my $geocoder = Geo::Coder::Google->new;
-        my $geocoder = Geo::Coder::TomTom->new;
+        my $geocoder = Geo::Coder::Google->new;
+        # my $geocoder = Geo::Coder::TomTom->new;
 
         my $location = $geocoder->geocode(
             location => $location_desc,
         );
+
+        # warn Dumper $location;
 
         if( $location and ! $location->{error} ) {
             $row->longitude = $location->{lon} || $location->{long} || $location->{longitude} || $location->{geometry}->{location}->{lng} or die Data::Dumper::Dumper $location;
