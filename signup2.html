@@ -5,7 +5,9 @@
 <meta http-equiv="Content-type" content="text/html; charset=UTF-8">
 <title>2016 Tempe Bike Count Volunteer Sign-Up</title>
 <link href="signupformgoogle_files/779923916-published_form_compiled.css" type="text/css" rel="stylesheet"/>
-<script type="text/javascript" src='jquery.min.js'></script>
+<!-- <script type="text/javascript" src='jquery.min.js'></script> -->
+<script src="//code.jquery.com/jquery-1.12.0.min.js"></script>
+<script src="//code.jquery.com/jquery-migrate-1.2.1.min.js"></script>
 <!-- <script type="text/javascript" src="ua-parser.min.js"></script> let's try without it; it doesn't seem to give a clear mobile/non-mobile indication anyway -->
 <!-- <script type="text/javascript" src="openlayers/lib/OpenLayers.js"></script> -->
 <script type="text/javascript" src='http://openlayers.org/api/OpenLayers.js'></script>
@@ -52,11 +54,11 @@ above.
 function view_current_assignments() {
     $.ajax({
         type: "GET",
-        url: "?action=get_assignments&email=" + encodeURIComponent(document.getElementById('email_address').value)
+        url: "?action=get_assignments&email=" + encodeURIComponent($('#email_address').val())
     }).done(function( html ) {
-        document.getElementById('current_assignments').innerHTML = html;
-        document.getElementById('current_assignments_popup').innerHTML = html;
-        document.getElementById('assignments').style.display = 'block';
+        $('#current_assignments').html(html);
+        $('#current_assignments_popup').html(html);
+        $('#assignments').css('display', 'block');
     });
 }
 
@@ -169,7 +171,7 @@ Please indicate which date you plan to attend.
     </div></div>
 
     <div class="ss-item ss-navigate"><div class="ss-form-entry">
-        <input name="continue" value="Add Assignment" type="button" onclick=" document.getElementById('ss-form').submit();"> <!-- XXX detect and warn user about failure! -->
+        <input name="continue" value="Add Assignment" type="button" onclick=" $('#ss-form').submit();"> <!-- XXX detect and warn user about failure! -->
     </div></div>
 
 </div>
