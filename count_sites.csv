@@ -1,5 +1,4 @@
 location_id,location_W_E,location_N_S,priority,vols_needed,latitude,longitude,automatic_geocoding_failed,geocoded_by,notes,2015_include,"last year done",2015_notes,Counter_notes,column_number_14
-"Loc ID","Location or Intersection: E/W","Location or Intersection: N/S",Score,vols_needed,latitude,longitude,automatic_geocoding_failed,geocoded_by,notes,column_number_10,column_number_11,column_number_12,column_number_13,column_number_14
 101,Washington/Curry,"Mill Ave",5.17,1,33.437574,-111.943254,1,hand,"scott: in Aarons notes to keep from his meeting with Cliff; says its the most important for releveance to SRP project and the relatively new installation of the cross-cut canal",,,,,
 102,"Rio Salado Pkwy","Mill Ave",5.61,2,33.42969,-111.94045,0,hand,major,,,,,
 103,"Rio Salado Pkwy","Rural Rd",16.71,1,33.429245,-111.926099,1,Geo::Coder::Geocoder::US,,,,,,
