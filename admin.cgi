@@ -38,7 +38,7 @@ use geo;
 
 # my $previous = csv->new('count_data_2013_post_cliff_fixes_extra_data_prune.csv', 0);
 # my $previous = csv->new('2014_post_turk_post_volunteer_entry_checking_post_scotts_sanity_checks_post_cliff_conversion.csv', 0);
-my $previous = csv->new('2015_Batch.post_entry_edited_headers.csv', 0);
+my $previous = csv->new('2015_Batch.csv_cliff_out.csv', 0);
 
 my $volunteers;
 my $count_sites;
@@ -185,13 +185,35 @@ do {
         <a href="?action=by_last_name">People By Last Name</a><br>
         <a href="?action=unassigned_locations">Unassigned Locations</a><br>
         <a href="?action=by_priority">Locations By Priority</a><br>
+        <a href="?action=min_priority">Limit Intersections Available for Signup by Priority</a><br>
         <a href="?action=download_volunteers">Download volunteers.csv</a><br>
         <hr>
     } );
 
     # do any actions
 
-    if ( $action eq 'assignments_by_location' ) {
+    if ( $action eq 'min_priority' ) {
+
+        open my $fh, '<', 'min_priority.txt' or print "$! -- no previous value was stored in min_priority.txt but we can set it now<br>\n";
+        my $min_priority = readline $fh;
+        chomp $min_priority;
+        $min_priority ||= 0;  # unlimited positive
+        print qq{
+            <form method="post">
+            <input type="hidden" name="action" value="set_min_priority">
+            <input type="text" value="$min_priority" name="min_priority">
+            <input type="submit" value="Update">
+            </form>
+        };
+
+    } elsif ( $action eq 'set_min_priority' ) {
+
+        open my $fh, '>', 'min_priority.txt' or die $!;
+        $fh->print( CGI::param('min_priority' ), "\n" );
+        close $fh;
+        print "Minimum intersection priority available for signup has been updated.<br>\n";
+
+    } elsif ( $action eq 'assignments_by_location' ) {
 
         # assignments by location id
 

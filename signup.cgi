@@ -16,8 +16,6 @@ use strict;
 
 use lib '/home/biketempe/perl5/lib/perl5/';
 
-my $max_priority_to_include = 20;
-
 use CGI;
 use CGI::Carp 'fatalsToBrowser';
 use Data::Dumper;
@@ -47,6 +45,14 @@ $SIG{USR1} = sub { Carp::confess $@; };
 $SIG{ALRM} = sub { Carp::confess $@; };
 
 alarm 60;
+
+my $min_priority_to_include;
+if( open my $fh, '<', 'min_priority.txt' ) {
+    $min_priority_to_include = readline $fh;
+    chomp $min_priority_to_include;
+} else {
+    $min_priority_to_include = 1000; # essentially everything
+}
 
 open my $log, '>>', 'signup.log' or die $!;
 $log->autoflush(1);
@@ -123,7 +129,7 @@ sub get_pending_sites {
 
     # returns a hash of 101A style codes to site records from $count_sites
     # takes an optional location_id argument to restrict results
-    # enforced $max_priority_to_include
+    # enforced $min_priority_to_include
 
     my $loc_id = shift;
 
@@ -133,7 +139,7 @@ sub get_pending_sites {
     for my $site ( $count_sites->rows ) {
         next if $loc_id and $loc_id ne $site->location_id;
         next if ! $site->vols_needed;
-        next if $site->priority > $max_priority_to_include;
+        next if $site->priority < $min_priority_to_include;
         $double_up{ $site->location_id . 'A' } = $site->vols_needed;
         $double_up{ $site->location_id . 'P' } = $site->vols_needed;
 # warn $site->location_id . ' gets ' . $site->vols_needed if $site->vols_needed > 1;
