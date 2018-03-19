@@ -3,25 +3,29 @@
 <head>
 <link rel="shortcut icon" href="https://ssl.gstatic.com/docs/spreadsheets/forms/favicon_jfk2.png" type="image/x-icon"/>
 <meta http-equiv="Content-type" content="text/html; charset=UTF-8">
-<title>2017 Tempe Bike Count Volunteer Sign-Up</title>
+<title>2018 Tempe Bike Count Volunteer Sign-Up</title>
 <link href="signupformgoogle_files/779923916-published_form_compiled.css" type="text/css" rel="stylesheet"/>
-<!-- <script type="text/javascript" src='jquery.min.js'></script> -->
 <script src="//code.jquery.com/jquery-1.12.0.min.js"></script>
 <script src="//code.jquery.com/jquery-migrate-1.2.1.min.js"></script>
-<!-- <script type="text/javascript" src="ua-parser.min.js"></script> let's try without it; it doesn't seem to give a clear mobile/non-mobile indication anyway -->
-<!-- <script type="text/javascript" src="openlayers/lib/OpenLayers.js"></script> -->
 <script type="text/javascript" src='http://openlayers.org/api/OpenLayers.js'></script>
+<script type="text/javascript" src="bikecount.js"></script>
+
+<script type="text/javascript">
+    var pois = POIS;
+</script>
+
 </head>
 
-<body class="ss-base-body" dir="ltr" itemscope="" itemtype="http://schema.org/CreativeWork/FormObject" onload="draw_map();">
+<!-- <body class="ss-base-body" dir="ltr" itemscope="" itemtype="http://schema.org/CreativeWork/FormObject" onload="draw_map();"> -->
+<body class="ss-base-body" dir="ltr" itemscope="" itemtype="http://schema.org/CreativeWork/FormObject">
 
 <div class="ss-form-container">
-<div class="ss-form-heading"><h1 class="ss-form-title">2017 Tempe Bike Count Volunteer Sign-Up</h1>
+<div class="ss-form-heading"><h1 class="ss-form-title">2018 Tempe Bike Count Volunteer Sign-Up</h1>
 <p></p>
 <div class="ss-form-desc ss-no-ignore-whitespace">
 Thank you for volunteering for the Tempe Bike Count.
 
-There are six possible shifts: AM and PM shifts on March 28, 29, and 30.
+There are six possible shifts: AM and PM shifts on April 10, 11, 12.
 
 The AM shifts are 7am to 9am.  The PM shifts are 4pm to 6pm.
 
@@ -48,21 +52,6 @@ above.
 <div class="ss-form">
 
 <form method="POST" id="ss-form">
-
-<script type="text/javascript">
-
-function view_current_assignments() {
-    $.ajax({
-        type: "GET",
-        url: "?action=get_assignments&email=" + encodeURIComponent($('#email_address').val())
-    }).done(function( html ) {
-        $('#current_assignments').html(html);
-        $('#current_assignments_popup').html(html);
-        $('#assignments').css('display', 'block');
-    });
-}
-
-</script>
 
 <div class="errorbox-good">
     <div class="ss-item ss-item-required ss-text">
@@ -112,14 +101,19 @@ function view_current_assignments() {
 <div class="errorbox-good">
 <div class="ss-item ss-item-required ss-radio"><div class="ss-form-entry"><label class="ss-q-title" for="entry_7">Bike Count Training Session
 <span class="ss-required-asterisk">*</span></label>
+<!--
+
+<--
 <label class="ss-q-help" for="entry_7">All volunteers must attend one 60 minute training rally at the 
 <b>Tempe Transportation Center</b> (<a href="https://www.google.com/maps/place/Veterans+Way%2FCollege+Light+Rail+Station/@33.425972,-111.935242,15z/data=!4m2!3m1!1s0x872b08d8ba257f97:0xa164c2ceefaecd7" target="_blank">map</a>).  Take the evevator up to the second floor and enter the conferance room that's detached from the main building.
 <a href="http://www.spinellispizzeriatempe.com/" target="_blank">Spinelli's</a> is providing pizza to our count volunteers at training (thanks, Spinelli's!).
 Please indicate which date you plan to attend.
 </label>
+  -->
+
 <ul class="ss-choices">
-<li class="ss-choice-item"><label class="ss-choice-label"><input name="training_session" value="3/23" class="ss-q-radio" type="radio">Thu 3/23, 7pm</label></li>
-<li class="ss-choice-item"><label class="ss-choice-label"><input name="training_session" value="3/26" class="ss-q-radio" type="radio">Sun 3/26, noon</label></li>
+<li class="ss-choice-item"><label class="ss-choice-label"><input name="training_session" value="4/5" class="ss-q-radio" type="radio">Thu 4/5, evening</label></li>
+<li class="ss-choice-item"><label class="ss-choice-label"><input name="training_session" value="4/7" class="ss-q-radio" type="radio">Sat 4/7, morning</label></li>
 <li class="ss-choice-item"><input name="training_session" value="Other" class="ss-q-radio" id="other_option:7" type="radio"><label for="other_option:7">Other/None (explain):</label>
 <input name="training_session_comment" class="ss-q-other" type="text">
 </li></ul>
@@ -178,99 +172,12 @@ Please indicate which date you plan to attend.
 
 <div>
     <div class="ss-q-title">Click Widget To See Intersection Availability MAPNOTE</div>
-    <div class="ss-form-desc ss-no-ignore-whitespace">Count dates are Tues March 28, Wed March 29, and Thurs March 30.
+    <div class="ss-form-desc ss-no-ignore-whitespace">Count dates are Tues April 10, Wed April 11, and Thurs April 12.
     </div>
 </div>
 
 <div id="map" style=" width: 512px; height: 256px; border: 1px solid #ccc; "></div>
 
-<script type="text/javascript">
-
-function draw_map() {
-
-    var mobile = (/android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent.toLowerCase()));
-
-    var pois = POIS;
-
-    var map = new OpenLayers.Map("map");
-
-    var fromProjection = new OpenLayers.Projection("EPSG:4326");   // Transform from WGS 1984
-    // var toProjection   = map.getProjectionObject(); // new OpenLayers.Projection("EPSG:900913"); // to Spherical Mercator Projection ... that works for positioning hte map but breaks positioning the markers
-    var toProjection   = new OpenLayers.Projection("EPSG:900913"); // to Spherical Mercator Projection
-
-    var osm = new OpenLayers.Layer.OSM("OSM Layer", [
-        "http://a.tile.opencyclemap.org/cycle/${z}/${x}/${y}.png",
-        "http://b.tile.opencyclemap.org/cycle/${z}/${x}/${y}.png",
-        "http://c.tile.opencyclemap.org/cycle/${z}/${x}/${y}.png"
-    ]);
-    map.addLayer(osm);   // addLayer on a scalar, addLayers on an array
-
-    var markers = new OpenLayers.Layer.Markers( "Markers" );
-    map.addLayer(markers);
-
-    for( var i=0; i < pois.length; i++ ) {
- 
-        var lonLat = new OpenLayers.LonLat( pois[i].lon, pois[i].lat ).transform( fromProjection, toProjection );
-        var new_marker = new OpenLayers.Marker(lonLat);
-
-        (function() {
-            var desc = pois[i].desc;
-            var marker_selected = function (ob) {
-                if( ! document.getElementById('email_address').value ) {
-                    // no email addresss; show an error message
-                    document.getElementById('enter_your_email').style.display = 'block';
-                } else {
-
-                    // populate the form with the location_id of the selected intersection, and display the name of it to the human
-                    document.getElementById('location_id').value = desc;
-                    document.getElementById('intersection_name').innerHTML = desc;
-
-                    $('#map_alternative').val( desc ); // select the same thing on the back-up select list below
-
-                    // fetch the part of the form that lists what days the user wouldn't have conflicts for counting that intersection
-
-
-                    $.ajax({
-                        type: "GET",
-                        url: "?action=get_times_for_intersection&location_id=" + desc + "&email=" + encodeURIComponent(document.getElementById('email_address').value)
-                    }).done(function( html ) {
-                        document.getElementById('intersection_options').innerHTML = html;
-                        document.getElementById('assignment_details').style.display = 'block';
-
-                        // scroll to the form
-
-                        var viewportHeight = $(window).height(), 
-                            targ = $('#assignment_details'),
-                            elHeight = targ.height(),
-                            elOffset = targ.offset();
-// console.log(targ);
-// console.log(elOffset);
-// console.log("viewportHeight " + viewportHeight + " elHeight " + elHeight);
-                        // $(window).scrollTop( elOffset.top + ( elHeight/2) - (viewportHeight/2));
-                        $(window).scrollTop( elOffset.top );
-
-                    });
-
-                } 
-            };
-            // http://stackoverflow.com/questions/16772597/openlayers-how-to-add-click-and-touch-event-on-markers
-            if(mobile) {
-                new_marker.events.register( 'touchstart', new_marker, marker_selected );
-            } else {
-                new_marker.events.register( 'mousedown', new_marker, marker_selected );
-            }
-        })();
-        markers.addMarker(new_marker);
-
-    }
-
-    // from http://opencyclemap.org/?zoom=12&lat=33.39199&lon=-111.93891&layers=B00
-    var position = new OpenLayers.LonLat(-111.93891, 33.39199).transform( fromProjection, toProjection);
-    var zoom = 12;
-    map.setCenter( position, zoom );
-}
-
-</script>
 
 <p>
     <select name="map_alternative" id="map_alternative">
@@ -278,50 +185,9 @@ function draw_map() {
     </select>
 </p>
 
-<script type="text/javascript">
-
-    $('#map_alternative').change(function() {
-        var desc = $('#map_alternative').val();
-        document.getElementById('location_id').value = desc;
-        document.getElementById('intersection_name').innerHTML = desc;
-        $.ajax({
-            type: "GET",
-            url: "?action=get_times_for_intersection&location_id=" + encodeURIComponent(desc) + "&email=" + encodeURIComponent(document.getElementById('email_address'))
-        }).done(function( html ) {
-            document.getElementById('assignment_details').style.display = 'block';
-            document.getElementById('intersection_options').innerHTML = html;
-        });
-    });
-
-</script>
-
-<!-- /OSM map -->
 
 </form>
 
-<script type="text/javascript">
-      
-      (function() {
-var divs = document.getElementById('ss-form').
-getElementsByTagName('div');
-var numDivs = divs.length;
-for (var j = 0; j < numDivs; j++) {
-if (divs[j].className == 'errorbox-bad') {
-divs[j].lastChild.firstChild.lastChild.focus();
-return;
-}
-}
-// for (var i = 0; i < numDivs; i++) {
-//     var div = divs[i];
-//     if (div.className == 'ss-form-entry' &&
-//         div.firstChild &&
-//         div.firstChild.className == 'ss-q-title') {
-//         div.lastChild.focus();
-//         return;
-//     }
-// }
-})();
-      </script>
 </div>
 </div></div></body></html>
 
