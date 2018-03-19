@@ -471,12 +471,12 @@ check it and if it isn't what you expect, please contact us to sort it out.
 
 You may download and print out the count sheet from here:
 
-http://azcrap.org/bikecount/2013_count_sheet.pdf XXX
+http://www.biketempe.org/wp-content/uploads/2016/03/count_sheet_2015_2.pdf
 
 You need two copies for each shift you have (one sheet per hour, and all shifts
 are two hours).  Let me know if you need sheets but can't print them.
 
-The volunteer appreciation party is at XXX.
+The volunteer appreciation party is at Thursday March 30th at 7PM.
 
 Here are your shifts:
 
