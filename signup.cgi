@@ -6,12 +6,6 @@
 # XXX fix file locking
 # XXX when sending the "someone signed up" email to the management address, use the email address if a name isn't available yet
 
-# these require two (when they are done):
-#111,"10th St","Mill Ave",11,0,33.418945,-111.939799,0,Geo::Coder::Geocoder::US,"ASU cordon",
-#115,"University Dr","College Ave",9,2,33.421845,-111.934799,0,Geo::Coder::Geocoder::US,"ASU cordon",
-#133,"Apache Blvd","College Ave",7,2,33.414545,-111.934699,0,Geo::Coder::Geocoder::US,"ASU cordon",
-#136,"Spence St","Rural Rd",18,0,33.412845,-111.926198,0,Geo::Coder::Geocoder::US,"skip for 2014; lean on 135 just to the north instead",
-
 use strict;
 
 use lib '/home/biketempe/perl5/lib/perl5/';
@@ -32,6 +26,7 @@ use Email::Send::SMTP::Gmail;
 use repop 'repop';
 use csv;
 use geo;
+use geoip;
 
 my %email_config = (
     -smtp=>   'smtp.gmail.com',
@@ -57,6 +52,7 @@ if( open my $fh, '<', 'min_priority.txt' ) {
 open my $log, '>>', 'signup.log' or die $!;
 $log->autoflush(1);
 $log->print('=' x 20, ' ', scalar localtime, ' ', '=' x 20, "\n");
+$log->print("IP: $ENV{REMOTE_ADDR}\n");
 
 close STDERR;
 open STDERR, '>>', 'signup.log' or die $!;
@@ -414,7 +410,7 @@ do {
     if( $action eq 'register' ) {
 
         # my %new_params = $req->param;
-        my %new_params = map { $_ => $req->param($_) } $req->param; # CGI's param() returns a list of names
+        my %new_params = map { $_ => scalar $req->param($_) } $req->param; # CGI's param() returns a list of names
         warn "new params: " . Data::Dumper::Dumper \%new_params;
 
         for my $new_param (keys %new_params) {
@@ -424,7 +420,13 @@ do {
         }
         $log->print("signup_data: " . Data::Dumper::Dumper $signup_data );
 
-        $error = update_volunteer_data( $signup_data ) || '' if $signup_data->{email_address};
+        if(geoip::geoip($ENV{REMOTE_ADDR}) ne 'United States') {
+            # don't record anything; dealing with spam
+            $error = '<br><br>Count shift recorded -- thanks!';
+        } else {
+            # United States; record stuff
+            $error = update_volunteer_data( $signup_data ) || '' if $signup_data->{email_address};
+        }
 
         # fall through to showing the signup form again, repopulated with $signup_data
 
