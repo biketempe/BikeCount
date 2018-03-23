@@ -36,9 +36,7 @@ use Cwd;
 use csv;
 use geo;
 
-# my $previous = csv->new('count_data_2013_post_cliff_fixes_extra_data_prune.csv', 0);
-# my $previous = csv->new('2014_post_turk_post_volunteer_entry_checking_post_scotts_sanity_checks_post_cliff_conversion.csv', 0);
-my $previous = csv->new('2015_Batch.csv_cliff_out.csv', 0);
+my $previous; # = csv->new('2015_Batch.csv_cliff_out.csv', 0);  # MechanicalTurk format wide csv file of entered data
 
 my $volunteers;
 my $count_sites;
@@ -98,34 +96,37 @@ sub recompute_stuff {
     # find sketchy assignments where a new counter (or one who turned in no data in previous years) is on a high value intersection
     #
  
-    %prev_volunteer_names = map { ( $_->Recorder => 1 ) } $previous->rows;
+    if($previous) {
 
-    for my $volunteer ( $volunteers->rows ) {
-        # first_name,last_name,phone_number,email_address,training_session,training_session_comment,intersections,comments
-        my $sketchy;
-        my $name = join ' ', map $volunteer->{$_}, qw/first_name last_name/;
-        if( grep length $_, map $volunteer->{$_}, qw/first_name last_name/ ) {
-            my @matches = String::Approx::amatch($name, keys %prev_volunteer_names);
-            # print "$name matches: @matches\n";
-            @matches or $sketchy = 1;
-        } else {
-            # print $volunteer->email_address . ": no name!\n";
-            $sketchy = 1;
-        }
-        if( $sketchy ) {
-            my $email = $volunteer->email_address;
-            $name = $email if $name eq ' ';
-            # print "$name: " . $volunteer->intersections . "\n";
-            my @intersections = split m/,/, $volunteer->intersections;
-            for my $intersection (@intersections) {
-                my( $location_id, $ampm, $day ) = $intersection =~ m/(\d+)([AP])(.*)/;
-                my $location = $count_sites->find( 'location_id', $location_id );
-                push @sketchy_assignments, [ $name, $intersection, $location->priority, $email ];
+        %prev_volunteer_names = map { ( $_->Recorder => 1 ) } $previous->rows;
+
+        for my $volunteer ( $volunteers->rows ) {
+            # first_name,last_name,phone_number,email_address,training_session,training_session_comment,intersections,comments
+            my $sketchy;
+            my $name = join ' ', map $volunteer->{$_}, qw/first_name last_name/;
+            if( grep length $_, map $volunteer->{$_}, qw/first_name last_name/ ) {
+                my @matches = String::Approx::amatch($name, keys %prev_volunteer_names);
+                # print "$name matches: @matches\n";
+                @matches or $sketchy = 1;
+            } else {
+                # print $volunteer->email_address . ": no name!\n";
+                $sketchy = 1;
+            }
+            if( $sketchy ) {
+                my $email = $volunteer->email_address;
+                $name = $email if $name eq ' ';
+                # print "$name: " . $volunteer->intersections . "\n";
+                my @intersections = split m/,/, $volunteer->intersections;
+                for my $intersection (@intersections) {
+                    my( $location_id, $ampm, $day ) = $intersection =~ m/(\d+)([AP])(.*)/;
+                    my $location = $count_sites->find( 'location_id', $location_id );
+                    push @sketchy_assignments, [ $name, $intersection, $location->priority, $email ];
+                }
             }
         }
+        
+        @sketchy_assignments = sort { $a->[2] <=> $b->[2] } @sketchy_assignments;
     }
-    
-    @sketchy_assignments = sort { $a->[2] <=> $b->[2] } @sketchy_assignments;
 
 }
     
